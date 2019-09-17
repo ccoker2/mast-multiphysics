@@ -212,8 +212,17 @@ namespace MAST {
                                                const unsigned int deriv_dim,
                                                const MAST::PrimitiveSolution& sol,
                                                RealMatrixX& mat);
-        
-        
+
+        void calculate_diffusion_flux_jacobian_cons(const unsigned int flux_dim,
+                                                    const unsigned int deriv_dim,
+                                                    const MAST::PrimitiveSolution& sol,
+                                                    const RealVectorX& elem_sol,
+                                                    const RealMatrixX& stress_tensor,
+                                                    const RealMatrixX& temp_gradient,
+                                                    const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                                                    const RealMatrixX& dprim_dcons,
+                                                    RealMatrixX& mat);
+
         void
         calculate_diffusion_flux_jacobian_primitive_vars (const unsigned int flux_dim,
                                                           const unsigned int deriv_dim,

@@ -872,19 +872,19 @@ calculate_diffusion_flux_jacobian (const unsigned int flux_dim,
                         {
                             mat(3,0) = -u3*mu/rho;
                             mat(3,3) = mu/rho;
-                            
+
                             mat(n1-1,3) = u3*(-kth+cv*mu)/cv/rho;
                         }
-                            
+
                         case 2:
                         case 1:
                         {
                             mat(1,0) = -u1*mu/rho;
                             mat(1,1) = mu/rho;
-                            
+
                             mat(2,0) = -u2*(lambda+2.*mu)/rho;
                             mat(2,2) = (lambda+2.*mu)/rho;
-                            
+
                             mat(n1-1,0) = (kth*(2.*k-e_tot)-cv*(2.*k*mu+u2*u2*(mu+lambda)))/cv/rho;
                             mat(n1-1,1) = u1*(-kth+cv*mu)/cv/rho;
                             mat(n1-1,2) = u2*(-kth+cv*(lambda+2.*mu))/cv/rho;
@@ -969,6 +969,267 @@ calculate_diffusion_flux_jacobian (const unsigned int flux_dim,
 
 
 
+void
+MAST::FluidElemBase::
+calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
+                                        const unsigned int deriv_dim,
+                                        const MAST::PrimitiveSolution& sol,
+                                        const RealVectorX& elem_sol,
+                                        const RealMatrixX& stress_tensor,
+                                        const RealMatrixX& temp_gradient,
+                                        const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                                        const RealMatrixX& dprim_dcons,
+                                        RealMatrixX& mat) {
+
+        const unsigned int n1 = dim+2;
+
+        RealVectorX
+                dcons_dx               = RealVectorX::Zero(n1);
+
+
+
+
+    mat.setZero();
+
+    const Real rho = sol.rho,
+    u1 = sol.u1,
+    u2 = sol.u2,
+    u3 = sol.u3,
+    k = sol.k,
+    e_tot = sol.e_tot,
+    mu = sol.mu,
+    lambda = sol.lambda,
+    kth = sol.k_thermal,
+    cv = flight_condition->gas_property.cv,
+    gma = 1;
+
+
+    switch (flux_dim)
+    {
+        case 0:
+        {
+            switch (deriv_dim)
+            {
+                case 0: // K11
+                {
+                    switch (dim)
+                    {
+                        case 3:
+                        {
+                            mat(1,3) = (gma-1)*u3;
+
+                            mat(3,0)=-1/2*(gma-1)*(pow(u1,2)+pow(u2,2)+pow(u3,2));
+
+                            dB_mat[2].vector_mult(dcons_dx, elem_sol); // dUcons/dx_i
+                            RealVectorX dprim_dz = dprim_dcons * dcons_dx; // dUprim/dx_i
+                            Real du1_dz = dprim_dz(1);
+                            Real du2_dz = dprim_dz(2);
+                            Real du3_dz = dprim_dz(3);
+
+                            dB_mat[1].vector_mult(dcons_dx, elem_sol); // dUcons/dx_i
+                            RealVectorX dprim_dy = dprim_dcons * dcons_dx; // dUprim/dx_i
+                            Real du1_dy = dprim_dy(1);
+                            Real du2_dy = dprim_dy(2);
+                            Real du3_dy = dprim_dy(3);
+
+                            dB_mat[0].vector_mult(dcons_dx, elem_sol); // dUcons/dx_i
+                            RealVectorX dprim_dx = dprim_dcons * dcons_dx; // dUprim/dx_i
+                            Real du1_dx = dprim_dx(1);
+                            Real du2_dx = dprim_dx(2);
+                            Real du3_dx = dprim_dx(3);
+
+                            mat(n1-1,0) = (-2*du2)
+                        }
+
+                        case 2:
+                        {
+                            mat(1,2) = (gma-1)*u2;
+
+                            mat(2,0) = -1/2*(gma-1)*(pow(u1,2)+pow(u2,2)+pow(u3,2));
+
+                            dB_mat[1].vector_mult(dcons_dx, elem_sol); // dUcons/dx_i
+                            RealVectorX dprim_dy = dprim_dcons * dcons_dx; // dUprim/dx_i
+                            Real du1_dy = dprim_dy(1);
+                            Real du2_dy = dprim_dy(2);
+                            Real du3_dy = dprim_dy(3);
+
+                            dB_mat[0].vector_mult(dcons_dx, elem_sol); // dUcons/dx_i
+                            RealVectorX dprim_dx = dprim_dcons * dcons_dx; // dUprim/dx_i
+                            Real du1_dx = dprim_dx(1);
+                            Real du2_dx = dprim_dx(2);
+                            Real du3_dx = dprim_dx(3);
+
+                        }
+
+                        case 1:
+                        {
+                            mat(1,1) = (gma-1)*u1;
+
+                            mat(1,0) = -1/2*(gma-1)*(pow(u1,2)+pow(u2,2)+pow(u3,2));
+
+                            mat(1,n1-1) = 1-gma;
+
+                            dB_mat[0].vector_mult(dcons_dx, elem_sol); // dUcons/dx_i
+                            RealVectorX dprim_dx = dprim_dcons * dcons_dx; // dUprim/dx_i
+                            Real du1_dx = dprim_dx(1);
+                            Real du2_dx = dprim_dx(2);
+                            Real du3_dx = dprim_dx(3);
+                        }
+                    }
+                }
+                    break;
+
+                case 1: // K12
+                {
+                    mat(1,0) = 0;
+                    mat(1,2) = 0;
+
+                    mat(2,0) = 0;
+                    mat(2,1) = 0;
+
+                    mat(n1-1,0) = 0;
+                    mat(n1-1,1) = 0;
+                    mat(n1-1,2) = 0;
+                }
+                    break;
+
+                case 2: // K13
+                {
+                    mat(1,0) = 0;
+                    mat(1,3) = 0;
+
+                    mat(3,0) = 0;
+                    mat(3,1) = 0;
+
+                    mat(n1-1,0) = 0;
+                    mat(n1-1,1) = 0;
+                    mat(n1-1,3) = 0;
+                }
+                    break;
+            }
+        }
+            break;
+
+        case 1:
+        {
+            switch (deriv_dim)
+            {
+                case 0: // K21
+                {
+                    mat(1,0) = 0;
+                    mat(1,2) = 0;
+
+                    mat(2,0) = 0;
+                    mat(2,1) = 0;
+
+                    mat(n1-1,0) = 0;
+                    mat(n1-1,1) = 0;
+                    mat(n1-1,2) = 0;
+                }
+                    break;
+
+                case 1: // K22
+                {
+                    switch (dim)
+                    {
+                        case 3:
+                        {
+                            mat(3,0) = 0;
+                            mat(3,3) = 0;
+
+                            mat(n1-1,3) = 0;
+                        }
+
+                        case 2:
+                        case 1:
+                        {
+                            mat(1,0) = 0;
+                            mat(1,1) = 0;
+
+                            mat(2,0) = 0;
+                            mat(2,2) = 0;
+
+                            mat(n1-1,0) = 0;
+                            mat(n1-1,1) = 0;
+                            mat(n1-1,2) = 0;
+                            mat(n1-1,n1-1) = 0;
+                        }
+                    }
+                }
+                    break;
+
+                case 2: // K23
+                {
+                    mat(2,0) = 0;
+                    mat(2,3) = 0;
+
+                    mat(3,0) = 0;
+                    mat(3,2) = 0;
+
+                    mat(n1-1,0) = 0;
+                    mat(n1-1,2) = 0;
+                    mat(n1-1,3) = 0;
+                }
+                    break;
+            }
+        }
+            break;
+
+        case 2:
+        {
+            switch (deriv_dim)
+            {
+                case 0: // K31
+                {
+                    mat(1,0) = 0;
+                    mat(1,3) = 0;
+
+                    mat(3,0) = 0;
+                    mat(3,1) = 0;
+
+                    mat(n1-1,0) = 0;
+                    mat(n1-1,1) = 0;
+                    mat(n1-1,3) = 0;
+                }
+                    break;
+
+                case 1: // K32
+                {
+                    mat(2,0) = 0;
+                    mat(2,3) = 0;
+
+                    mat(3,0) = 0;
+                    mat(3,2) = 0;
+
+                    mat(n1-1,0) = 0;
+                    mat(n1-1,2) = 0;
+                    mat(n1-1,3) = 0;
+                }
+                    break;
+
+                case 2: // K33
+                {
+                    mat(1,0) = 0;
+                    mat(1,1) = 0;
+
+                    mat(2,0) = 0;
+                    mat(2,2) = 0;
+
+                    mat(3,0) = 0;
+                    mat(3,3) = 0;
+
+                    mat(n1-1,0) = 0;
+                    mat(n1-1,1) = 0;
+                    mat(n1-1,2) = 0;
+                    mat(n1-1,3) = 0;
+                    mat(n1-1,n1-1) = 0;
+                }
+                    break;
+            }
+        }
+            break;
+    }
+}
 
 void
 MAST::FluidElemBase::
