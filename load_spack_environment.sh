@@ -1,0 +1,11 @@
+spack load gcc@8.3.0
+spack load cmake%gcc@8.3.0
+spack load openmpi%gcc@8.3.0
+spack load openblas%gcc@8.3.0
+spack load boost%gcc@8.3.0
+spack load hdf5%gcc@8.3.0
+spack load boost%gcc@8.3.0
+spack load eigen%gcc@8.3.0
+spack load petsc%gcc@8.3.0
+spack load slepc%gcc@8.3.0
+spack load libmesh%gcc@8.3.0
