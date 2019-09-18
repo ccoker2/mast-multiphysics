@@ -252,6 +252,7 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
                     
                     for (unsigned int j_dim=0; j_dim<dim; j_dim++) {
                         
+                        // implicit term
                         calculate_diffusion_flux_jacobian(i_dim,
                                                           j_dim,
                                                           primitive_sol,
@@ -259,25 +260,22 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
                         
                         dBmat[j_dim].left_multiply(mat3_n1n2, mat1_n1n1);                     // Kij dB_j
                         dBmat[i_dim].right_multiply_transpose(mat4_n2n2, mat3_n1n2);          // dB_i^T Kij dB_j
-
-
                         jac += JxW[qp]*mat4_n2n2;
 
+
+                        // explicit term
                         calculate_diffusion_flux_jacobian_cons(i_dim,
                                                                j_dim,
                                                                primitive_sol,
-                                                               _sol,                        // local element solution
+                                                               _sol,                          // local element solution
                                                                stress,
                                                                temp_grad,
                                                                dBmat,
                                                                dprim_dcons,
-                                                               mat4_n1n1);
-                        Bmat.left_multiply(mat5_n1n2,mat4_n1n1);                              // Ki B
-                        dBmat[i_dim].right_multiply_transpose(mat6_n2n2,mat5_n1n2);           // dB_i^T Ki B
-
-
-
-                        jac += JxW[qp]*mat6_n2n2;
+                                                               mat1_n1n1);
+                        Bmat.left_multiply(mat3_n1n2,mat1_n1n1);                              // Ki B
+                        dBmat[i_dim].right_multiply_transpose(mat4_n2n2,mat3_n1n2);           // dB_i^T Ki B
+                        jac += JxW[qp]*mat4_n2n2;
                     }
                 }
                 
