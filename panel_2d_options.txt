@@ -1,0 +1,24 @@
+mpirun -np 12 /scratch/coker/mast-multiphysics/build/examples/fluid/example_1/fluid_example_1 \
+if_analysis=true \
+if_sensitivity=true \
+if_stabilized_sensitivity=false \
+nonlinear_sol_dir=./data \
+mesh=panel_2d \
+print_params=true \
+force_unit_vector="1 0 0" \
+if_output=true \
+mach=0.2 \
+rho=1.e-4 \
+dt=1.e-5 max_dt=1.e-5 n_transient_steps=1000 \
+beta=0.5 \
+T=200 \
+if_viscous=true \
+elem_type=quad9 \
+fe_order=second \
+fe_family=lagrange \
+-snes_max_it 10 -snes_converged_reason \
+-pc_type asm -ksp_gmres_restart 130 -ksp_converged_reason \
+-snes_linesearch_type basic -snes_linesearch_damping 1 -snes_linesearch_max_it 1 \
+--redirect-output out --keep-cout &> t
+
+
