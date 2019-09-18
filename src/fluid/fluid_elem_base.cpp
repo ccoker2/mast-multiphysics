@@ -1000,8 +1000,9 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
     mu = sol.mu,
     lambda = sol.lambda,
     kth = sol.k_thermal,
+    T = sol.T,
     cv = flight_condition->gas_property.cv,
-    gma = 1;
+    gma = flight_condition->gas_property.gamma;
 
 
     switch (flux_dim)
@@ -1038,7 +1039,10 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
                             Real du2_dx = dprim_dx(2);
                             Real du3_dx = dprim_dx(3);
 
-                            mat(n1-1,0) = (-2*du2)
+                            mat(n1-1,0) = -(du2_dy*u1*lambda + du3_dz*u1*lambda + du1_dy*u2*mu + du2_dx*u2*mu
+                                            + du1_dz*u3*mu + du3_dx*u3*mu + du1_dx*u1*(lambda + 2*mu) + cv*T*u1*rho
+                                            - pow(u1,3)*rho/2 - u1*u2*u2*rho/2 - u1*u3*u3*rho/2 - cv*T*u1*gma*rho
+                                            + pow(u1,3)*gma*rho + u1*u2*u2*gma*rho + u1*u3*u3*gma*rho)/rho;
                         }
 
                         case 2:
