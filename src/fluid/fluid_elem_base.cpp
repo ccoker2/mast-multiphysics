@@ -1130,8 +1130,8 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
                         - pow(u2,3)*rho
                         - u2*u3*u3*rho
                         - 2*cv*T*u2*gma*rho
-                        _ u1*u1*u2*gma*rho
-                        + pow(uw,3)*gma*rho
+                        + u1*u1*u2*gma*rho
+                        + pow(u2,3)*gma*rho
                         + u2*u3*u3*gma*rho)/2/rho;
                     mat(4,1) = u1*u2*(-1+gma)+(du1_dy+du2_dx)*mu/rho;
                     mat(4,2) = (du1_dx*lambda
@@ -1186,7 +1186,7 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
                         + pow(u3,3)*gma*rho)/2/rho;
                     mat(4,1) = u1*u3*(-1+gma)+(du1_dz+du3_dx)*mu/rho;
                     mat(4,2) = u2*u3*(-1+gma)+(du2_dz+du3_dy)*mu/rho;
-                    mat(4,3) = (du1_dx*lambda + du2_dy*lambda + du3_dz*lambda + 2*du3_dz*mu + cv*T*rho - u3*u3*rho - cv*T*gamma*rho+u3*u3*gma*rho)/rho;
+                    mat(4,3) = (du1_dx*lambda + du2_dy*lambda + du3_dz*lambda + 2*du3_dz*mu + cv*T*rho - u3*u3*rho - cv*T*gma*rho+u3*u3*gma*rho)/rho;
                     mat(4,4) = u3 - u3*gma;
                     break;
                 }
