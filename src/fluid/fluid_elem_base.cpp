@@ -972,7 +972,6 @@ calculate_diffusion_flux_jacobian (const unsigned int flux_dim,
 void
 MAST::FluidElemBase::
 calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
-                                        const unsigned int deriv_dim,
                                         const MAST::PrimitiveSolution& sol,
                                         const RealVectorX& elem_sol,
                                         const RealMatrixX& stress_tensor,
