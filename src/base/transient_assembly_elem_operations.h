@@ -89,8 +89,8 @@ namespace MAST {
          */
         virtual void
         linearized_jacobian_solution_product(RealVectorX& f) = 0;
-        
-        
+
+
         /*!
          *   performs the element sensitivity calculations over \p elem,
          *   and returns the component of  element residual sensitivity in
@@ -100,7 +100,11 @@ namespace MAST {
                                                    RealVectorX& f_m,
                                                    RealVectorX& f_x) = 0;
 
-
+        /*!
+         *    a helper function to evaluate the numerical Jacobian
+         *    and compare it with the analytical Jacobian.
+         */
+        void check_element_numerical_jacobian(RealVectorX& sol);
     protected:
         
     };

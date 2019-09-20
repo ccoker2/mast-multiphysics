@@ -1227,6 +1227,10 @@ public:
                                              _sys->time);
                 _sys->solution->swap(solver.solution_sensitivity());
             }
+
+
+            // check the jacobian
+//            solver.check_element_numerical_jacobian(solver.solution());
             
             std::ostringstream oss;
             oss << nonlinear_sol_root << t_step;
