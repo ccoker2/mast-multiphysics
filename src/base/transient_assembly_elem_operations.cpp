@@ -97,64 +97,103 @@ MAST::TransientAssemblyElemOperations::~TransientAssemblyElemOperations() {
 
 void
 MAST::TransientAssemblyElemOperations
-::check_element_numerical_jacobian(RealVectorX& sol)  {
-    RealVectorX
-            dsol,
-            res0,
-            dres;
+::check_element_numerical_jacobian()  {
 
-    RealVectorX
-            f_m,
-            f_x;
-
-    RealVectorX
-            f_m0,
-            f_x0;
-
-    RealMatrixX
-            f_m_jac_xdot,
-            f_m_jac,
-            f_x_jac;
-
-    RealMatrixX
-            f_m_jac_xdot0,
-            f_m_jac0,
-            f_x_jac0;
-
-    RealMatrixX
-            jac0,
-            jac,
-            dummy;
-
+    sol = this->_physics_elem->MAST::ElementBase::sol(0);
+    vel = this->_physics_elem->MAST::ElementBase::vel(0);
     unsigned int ndofs = (unsigned int)sol.size();
-    res0.setZero(ndofs);
-    dres.setZero(ndofs);
-    jac0.setZero(ndofs, ndofs);
-    jac.setZero(ndofs, ndofs);
 
+    // initial
+    RealVectorX
+            f_m = RealVectorX::Zero(ndofs),
+            f_x = RealVectorX::Zero(ndofs),
+            sol = RealVectorX::Zero(ndofs),
+            vel = RealVectorX::Zero(ndofs);
+
+    // perturbed
+    RealVectorX
+            df_m = RealVectorX::Zero(ndofs),
+            df_x = RealVectorX::Zero(ndofs),
+            dsol = RealVectorX::Zero(ndofs),
+            dvel = RealVectorX::Zero(ndofs);
+
+    // analytical
+    RealMatrixX
+            f_m_jac_xdot0 = RealMatrixX::Zero(ndofs,ndofs),
+            f_m_jac0 = RealMatrixX::Zero(ndofs,ndofs),
+            f_x_jac0 = RealMatrixX::Zero(ndofs,ndofs);
+
+    // perturbed
+    RealMatrixX
+            f_m_jac_xdot = RealMatrixX::Zero(ndofs,ndofs),
+            f_m_jac = RealMatrixX::Zero(ndofs,ndofs),
+            f_x_jac = RealMatrixX::Zero(ndofs,ndofs);
+
+    // dummy vars
+    RealMatrixX
+            dummy_mat1 = RealMatrixX::Zero(ndofs,ndofs),
+            dummy_mat2 = RealMatrixX::Zero(ndofs,ndofs),
+            dummy_mat3 = RealMatrixX::Zero(ndofs,ndofs);
+
+    RealVectorX
+            dummy_vec1 = RealVectorX::Zero(ndofs);
+
+    // numerical
+    RealMatrixX
+            jac,
+            mas;
+
+
+
+    // initial
     this->set_elem_solution(sol);
-    this->elem_calculations(true, f_m0, f_x0, f_m_jac_xdot0, f_m_jac0, f_x_jac0);
+    this->elem_calculations(true, f_m, f_x, f_m_jac_xdot0, f_m_jac0, f_x_jac0);
     Real delta = 1.0e-8;
 
+    // numerical jacobian matrix
     for (unsigned int i=0; i<sol.size(); i++) {
         dsol = sol;
         dsol(i) += delta;
-
         this->set_elem_solution(dsol);
-        this->elem_calculations(false, f_m, f_x, f_m_jac_xdot, f_m_jac, f_x_jac);
-        jac.col(i) = (dres-res0)/delta;
+
+        this->elem_calculations(false, dummy_vec1, df_x, dummy_mat1, dummy_mat2, dummy_mat3);
+        jac.col(i) = (df_x-f_x)/delta;
     }
+
+    this->set_elem_solution(sol);
+    // calculate numerical mass matrix
+    for (unsigned int i=0; i<vel.size(); i++) {
+        dvel = vel;
+        dvel(i) += delta;
+        this->set_elem_velocity(dvel);
+
+        this->elem_calculations(false, df_m, dummy_vec1, dummy_mat1, dummy_mat2, dummy_mat3);
+        mas.col(i) = (df_m-f_m)/delta;
+    }
+
 
     // write the numerical and analytical jacobians
     libMesh::out
             << "Analytical Jacobian: " << std::endl
-            << jac0
+            << f_x_jac0
             << std::endl << std::endl
             << "Numerical Jacobian: " << std::endl
             << jac
             << std::endl << std::endl;
 
-    MAST::transient_compare_matrix(jac, jac0, 1.0e-5);
+    MAST::transient_compare_matrix(jac, f_x_jac0, 1.0e-5);
+    // set the original solution vector for the element
+
+    // write the numerical and analytical mass matrices
+    libMesh::out
+            << "Analytical Jacobian: " << std::endl
+            << f_m_jac_xdot0
+            << std::endl << std::endl
+            << "Numerical Jacobian: " << std::endl
+            << mas
+            << std::endl << std::endl;
+
+    MAST::transient_compare_matrix(jac, f_x_jac0, 1.0e-5);
     // set the original solution vector for the element
     this->set_elem_solution(sol);
 }

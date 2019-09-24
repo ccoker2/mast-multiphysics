@@ -104,7 +104,7 @@ namespace MAST {
          *    a helper function to evaluate the numerical Jacobian
          *    and compare it with the analytical Jacobian.
          */
-        void check_element_numerical_jacobian(RealVectorX& sol);
+        void check_element_numerical_jacobian();
     protected:
         
     };
