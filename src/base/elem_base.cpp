@@ -57,6 +57,14 @@ MAST::ElementBase::sol(bool if_sens) const {
         return _sol_sens;
 }
 
+const RealVectorX&
+MAST::ElementBase::vel(bool if_sens) const {
+    if (!if_sens)
+        return _vel;
+    else
+        return _vel_sens;
+}
+
 
 void
 MAST::ElementBase::set_solution(const RealVectorX &vec,

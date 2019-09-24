@@ -124,7 +124,12 @@ namespace MAST {
          *   sensitivity if \p if_sens is true.
          */
         const RealVectorX& sol(bool if_sens = false) const;
-        
+
+        /*!
+         *   @returns a const reference to the velocity vector, or its
+         *   sensitivity if \p if_sens is true.
+         */
+         const RealVectorX& vel(bool if_sens = false) const;
         
         /*!
          *   stores \p vec as solution for element level calculations,
