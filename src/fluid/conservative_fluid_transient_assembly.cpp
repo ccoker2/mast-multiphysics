@@ -69,8 +69,6 @@ elem_calculations(bool if_jac,
     //assembly of the capacitance term
     e.velocity_residual(if_jac, f_m, f_m_jac_xdot, f_m_jac);
 
-    //check the Jacobian
-    this->check_element_numerical_jacobian();
 }
 
 

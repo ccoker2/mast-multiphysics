@@ -18,6 +18,7 @@
  */
 
 // MAST includes
+#include <fluid/conservative_fluid_transient_assembly.h>
 #include "solver/first_order_newmark_transient_solver.h"
 #include "base/transient_assembly_elem_operations.h"
 #include "base/elem_base.h"
@@ -226,6 +227,9 @@ elem_calculations(bool if_jac,
                                      f_m_jac_xdot,  // Jac of mass wrt x_dot
                                      f_m_jac,       // Jac of mass wrt x
                                      f_x_jac);      // Jac of forcing vector wrt x
+
+    //check the Jacobian
+    _assembly_ops->check_element_numerical_jacobian();
 
     if (_if_highest_derivative_solution) {
         

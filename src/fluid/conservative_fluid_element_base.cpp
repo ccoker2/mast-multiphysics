@@ -265,17 +265,17 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
                     }
 
                     // explicit term
-                    calculate_diffusion_flux_jacobian_cons(i_dim,
-                                                           primitive_sol,
-                                                           _sol,                          // local element solution
-                                                           stress,
-                                                           temp_grad,
-                                                           dBmat,
-                                                           dprim_dcons,
-                                                           mat1_n1n1);
-                    Bmat.left_multiply(mat3_n1n2,mat1_n1n1);                              // Ki B
-                    dBmat[i_dim].right_multiply_transpose(mat4_n2n2,mat3_n1n2);           // dB_i^T Ki B
-                    jac += JxW[qp]*mat4_n2n2;
+                    //calculate_diffusion_flux_jacobian_cons(i_dim,
+                    //                                       primitive_sol,
+                    //                                       _sol,                          // local element solution
+                    //                                       stress,
+                    //                                       temp_grad,
+                    //                                       dBmat,
+                    //                                       dprim_dcons,
+                    //                                       mat1_n1n1);
+                    //Bmat.left_multiply(mat3_n1n2,mat1_n1n1);                              // Ki B
+                    //dBmat[i_dim].right_multiply_transpose(mat4_n2n2,mat3_n1n2);           // dB_i^T Ki B
+                    //jac += JxW[qp]*mat4_n2n2;
 
                 }
 
