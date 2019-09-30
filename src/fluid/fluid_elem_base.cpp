@@ -1014,7 +1014,7 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
     du3_dx = 0;
 
 
-    // calculate necessary derivatives
+    // calculate spatial derivatives
     switch (dim) {
         case 3: {
             dB_mat[2].vector_mult(dcons_dx, elem_sol); // dUcons/dx_i
@@ -1039,6 +1039,70 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
             break;
         }
     }
+
+    // calculate dEt_dprim
+    Real 
+      dEt_drho = 0,
+      dEt_du1  = 0,
+      dEt_du2  = 0,
+      dEt_du3  = 0
+      dEt_dT   = 0;
+
+    dEt_drho = cv*T + 1/2*(u1*u1 + u2*u2 + u3*u3);
+    dEt_du1  = u1*rho;
+    dEt_du2  = u2*rho;
+    dEt_du3  = u3*rho;
+    dEt_dT   = cv*rho;
+
+    // calculate dp_dprim
+    Real
+      dp_drho = 0,
+      dp_du1  = 0,
+      dp_du2  = 0,
+      dp_du3  = 0,
+      dp_dT   = 0;
+
+    dp_drho = (gma-1)*dEt_drho;
+    dp_du1  = (gma-1)*(-u1*rho + dEt_du1);
+    dp_du2  = (gma-1)*(-u2*rho + dEt_du2);
+    dp_du3  = (gma-1)*(-u3*rho + dEt_du3);
+    dp_dT   = (gma-1)*dEt_dT;
+
+
+
+    RealMatrixX
+    dprim_dcons = RealMatrixX::Zero(n1,n1);
+
+    // calculate dprim_dcons
+    switch (dim) {
+      case 3: {
+            dprim_dcons(0,0) = 1;
+            dprim_dcons(1,0) = -u1/rho;
+            dprim_dcons(1,1) = 1/rho;
+            dprim_dcons(2,0) = -u2/rho;
+            dprim_dcons(2,2) = 1/rho;
+            dprim_dcons(3,0) = -u3/rho;
+            dprim_dcons(3,3) = 1/rho;
+            dprim_dcons(n1,3) = -dEt_du3/rho/dEt_dT;
+            break;
+      }
+      case 2: {
+            dprim_dcons(2,0) = -u2/rho;
+            dprim_dcons(2,2) = 1/rho;
+            dprim_dcons(n1,2) = -dEt_du2/rho/dEt_dT;
+      }
+      case 1: {
+            dprim_dcons(0,0) = 1;
+            dprim_dcons(1,0) = -u1/rho;
+            dprim_dcons(1,1) = 1/rho;
+            dprim_dcons(n1,0) = (u3*dEt_du3 + u2*dEt_du2 + u1*dEt_du1 - rho*dEt_drho)/(rho*dEt_dT);
+            dprim_dcons(n1,1) = -dEt_du1/rho/dEt_dT;
+            dprim_dcons(n1,n1) = 1/dEt_dT;
+            break;
+      }
+    }
+              
+
 
 
     switch (flux_dim) {
