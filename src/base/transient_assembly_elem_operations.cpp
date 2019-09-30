@@ -58,24 +58,48 @@ namespace MAST {
 
         unsigned int
                 m0_rows = (unsigned int) m0.rows(),
-                m0_cols = (unsigned int) m0.cols();
+                m0_cols = (unsigned int) m0.cols(),
+                n_passes,
+                k=0;
+        Real
+                max_err,
+                min_err,
+                mean_err;
+        RealVectorX
+                errs   = RealVectorX::Zero(m.rows()*m.cols()),
+                passes = RealVectorX::Zero(m.rows()*m.cols());
+
+
         libmesh_assert_equal_to(m0_rows,  m.rows());
         libmesh_assert_equal_to(m0_cols,  m.cols());
 
 
         bool pass = true;
         for (unsigned int i=0; i<m0_rows; i++) {
-            for (unsigned int j=0; j<m0_cols; j++)
-                if (!MAST::transient_compare(m0(i,j), m(i,j), tol)) {
+            for (unsigned int j=0; j<m0_cols; j++) {
+                if (!MAST::transient_compare(m0(i, j), m(i, j), tol)) {
                     libMesh::out << "Failed comparison at (i,j) = ("
-                                 << i << ", " << j << ") : "
-                                 << "expected: " << m0(i,j) << "  , "
-                                 << "computed: " << m(i,j) << " : "
-                                 << "diff: " << m0(i,j) - m(i,j) << " , "
-                                 << "tol: " << tol << std::endl;
+                         << i << ", " << j << ") : "
+                         << "expected: " << m0(i, j) << "  , "
+                         << "computed: " << m(i, j) << " : "
+                         << "diff: " << m0(i, j) - m(i, j) << " , "
+                         << "tol: " << tol << std::endl;
                     pass = false;
                 }
+                errs(k) = m0(i, j) - m(i, j);
+                passes(k) = pass;
+                k++;
+            }
         }
+        max_err = errs.cwiseAbs().maxCoeff();
+        min_err = errs.cwiseAbs().minCoeff();
+        mean_err = errs.mean();
+        n_passes = (passes.array() != 0).count();
+
+        libMesh::out << "Max error: " << max_err << ", "
+        << " Min error: " << min_err
+        << " Mean error: " << mean_err
+        << " Number of elements within tolerance " << n_passes << std::endl;
 
         return pass;
     }
@@ -99,6 +123,10 @@ void
 MAST::TransientAssemblyElemOperations
 ::check_element_numerical_jacobian()  {
 
+    RealVectorX
+            sol,
+            vel;
+
     sol = this->_physics_elem->MAST::ElementBase::sol(0);
     vel = this->_physics_elem->MAST::ElementBase::vel(0);
     unsigned int ndofs = (unsigned int)sol.size();
@@ -106,9 +134,7 @@ MAST::TransientAssemblyElemOperations
     // initial
     RealVectorX
             f_m = RealVectorX::Zero(ndofs),
-            f_x = RealVectorX::Zero(ndofs),
-            sol = RealVectorX::Zero(ndofs),
-            vel = RealVectorX::Zero(ndofs);
+            f_x = RealVectorX::Zero(ndofs);
 
     // perturbed
     RealVectorX
@@ -140,8 +166,8 @@ MAST::TransientAssemblyElemOperations
 
     // numerical
     RealMatrixX
-            jac,
-            mas;
+            jac = RealMatrixX::Zero(ndofs,ndofs),
+            mas = RealMatrixX::Zero(ndofs,ndofs);
 
 
 
@@ -173,27 +199,27 @@ MAST::TransientAssemblyElemOperations
 
 
     // write the numerical and analytical jacobians
-    libMesh::out
-            << "Analytical Jacobian: " << std::endl
-            << f_x_jac0
-            << std::endl << std::endl
-            << "Numerical Jacobian: " << std::endl
-            << jac
-            << std::endl << std::endl;
+//    libMesh::out
+//            << "Analytical Jacobian: " << std::endl
+//            << f_x_jac0
+//            << std::endl << std::endl
+//            << "Numerical Jacobian: " << std::endl
+//            << jac
+//            << std::endl << std::endl;
 
-    MAST::transient_compare_matrix(jac, f_x_jac0, 1.0e-5);
+    MAST::transient_compare_matrix(jac, f_x_jac0, 1.0e1);
     // set the original solution vector for the element
 
-    // write the numerical and analytical mass matrices
-    libMesh::out
-            << "Analytical Jacobian: " << std::endl
-            << f_m_jac_xdot0
-            << std::endl << std::endl
-            << "Numerical Jacobian: " << std::endl
-            << mas
-            << std::endl << std::endl;
+//    // write the numerical and analytical mass matrices
+//    libMesh::out
+//            << "Analytical Mass Matrix: " << std::endl
+//            << f_m_jac_xdot0
+//            << std::endl << std::endl
+//            << "Numerical Mass Matrix: " << std::endl
+//            << mas
+//            << std::endl << std::endl;
 
-    MAST::transient_compare_matrix(jac, f_x_jac0, 1.0e-5);
+    MAST::transient_compare_matrix(mas, f_m_jac_xdot0, 1.0e-1);
     // set the original solution vector for the element
     this->set_elem_solution(sol);
 }
