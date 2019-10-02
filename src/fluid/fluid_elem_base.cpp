@@ -1014,7 +1014,7 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
     du3_dx = 0;
 
 
-    // calculate spatial derivatives
+    // calculate spatial derivatives of velocities
     switch (dim) {
         case 3: {
             dB_mat[2].vector_mult(dcons_dx, elem_sol); // dUcons/dx_i
@@ -1040,102 +1040,84 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
         }
     }
 
-    // calculate dEt_dprim
-    Real 
-      dEt_drho = 0,
-      dEt_du1  = 0,
-      dEt_du2  = 0,
-      dEt_du3  = 0
-      dEt_dT   = 0;
-
-    dEt_drho = cv*T + 1/2*(u1*u1 + u2*u2 + u3*u3);
-    dEt_du1  = u1*rho;
-    dEt_du2  = u2*rho;
-    dEt_du3  = u3*rho;
+    // calculate derivatives of total energy w.r.t. primitive variables
+    Real
+    dEt_drho = cv*T + 1/2*(u1*u1 + u2*u2 + u3*u3),
+    dEt_du1  = u1*rho,
+    dEt_du2  = u2*rho,
+    dEt_du3  = u3*rho,
     dEt_dT   = cv*rho;
 
-    // calculate dp_dprim
+    // calculate dp_dprim (total derivative)
     Real
-      dp_drho = 0,
-      dp_du1  = 0,
-      dp_du2  = 0,
-      dp_du3  = 0,
-      dp_dT   = 0;
-
-    dp_drho = (gma-1)*dEt_drho;
-    dp_du1  = (gma-1)*(-u1*rho + dEt_du1);
-    dp_du2  = (gma-1)*(-u2*rho + dEt_du2);
-    dp_du3  = (gma-1)*(-u3*rho + dEt_du3);
+    dp_drho = (gma-1)*(dEt_drho - 1/2*(u1*u1 + u2*u2 + u3*u3);
+    dp_du1  = (gma-1)*(dEt_du1 - u1*rho),
+    dp_du2  = (gma-1)*(dEt_du2 - u2*rho),
+    dp_du3  = (gma-1)*(dEt_du3 - u3*rho),
     dp_dT   = (gma-1)*dEt_dT;
 
+    // calculate dtau_drho (total derivative)
+    Real
+    dtau11_drho = -dp_drho,
+    dtau12_drho = 0,
+    dtau13_drho = 0,
+    dtau21_drho = 0,
+    dtau22_drho = -dp_drho,
+    dtau23_drho = 0,
+    dtau31_drho = 0,
+    dtau32_drho = 0,
+    dtau33_drho = -dp_drho,
 
-
-    RealMatrixX
-    dprim_dcons = RealMatrixX::Zero(n1,n1);
+    // calculate dtau_du1
+    Real
+    dtau11_du1 = -dp_du1
 
     // calculate dprim_dcons
+    RealMatrixX
+    dprim_dcons = RealMatrixX::Zero(n1,n1);
     switch (dim) {
       case 3: {
-            dprim_dcons(0,0) = 1;
-            dprim_dcons(1,0) = -u1/rho;
-            dprim_dcons(1,1) = 1/rho;
-            dprim_dcons(2,0) = -u2/rho;
-            dprim_dcons(2,2) = 1/rho;
-            dprim_dcons(3,0) = -u3/rho;
-            dprim_dcons(3,3) = 1/rho;
+            dprim_dcons(3,0)  = -u3/rho;
+            dprim_dcons(3,3)  = 1/rho;
             dprim_dcons(n1,3) = -dEt_du3/rho/dEt_dT;
-            break;
       }
       case 2: {
-            dprim_dcons(2,0) = -u2/rho;
-            dprim_dcons(2,2) = 1/rho;
+            dprim_dcons(2,0)  = -u2/rho;
+            dprim_dcons(2,2)  = 1/rho;
             dprim_dcons(n1,2) = -dEt_du2/rho/dEt_dT;
       }
       case 1: {
-            dprim_dcons(0,0) = 1;
-            dprim_dcons(1,0) = -u1/rho;
-            dprim_dcons(1,1) = 1/rho;
-            dprim_dcons(n1,0) = (u3*dEt_du3 + u2*dEt_du2 + u1*dEt_du1 - rho*dEt_drho)/(rho*dEt_dT);
-            dprim_dcons(n1,1) = -dEt_du1/rho/dEt_dT;
+            dprim_dcons(0,0)   = 1;
+            dprim_dcons(1,0)   = -u1/rho;
+            dprim_dcons(1,1)   = 1/rho;
+            dprim_dcons(n1,0)  = (u3*dEt_du3 + u2*dEt_du2 + u1*dEt_du1 - rho*dEt_drho)/(rho*dEt_dT);
+            dprim_dcons(n1,1)  = -dEt_du1/rho/dEt_dT;
             dprim_dcons(n1,n1) = 1/dEt_dT;
             break;
       }
     }
-              
 
+    // stress tensor
+    Real
+    tau11 = stress_tensor(1,1),
+    tau12 = stress_tensor(1,2),
+    tau13 = stress_tensor(1,3),
+    tau21 = stress_tensor(2,1),
+    tau22 = stress_tensor(2,2),
+    tau23 = stress_tensor(2,3),
+    tau31 = stress_tensor(3,1),
+    tau32 = stress_tensor(3,2),
+    tau33 = stress_tensor(3,3);
 
+    // derivative of stress tensor w.r.t. density
+    dtau11_drho = 
 
+    // calculate dfv(flux_dim)_dprim
     switch (flux_dim) {
         case 0: {
             switch (dim) {
                 case 3: {
-                    mat(1,0) = -1/2*(u1*u1 + u2*u2 + u3*u3)*(-1+gma);
-                    mat(1,1) = u1*(-1+gma);
-                    mat(1,2) = u2*(-1+gma);
-                    mat(1,3) = u3*(-1+gma);
-                    mat(1,4) = 1-gma;
-
-                    mat(4,0) = -(2*du2_dy*u1*lambda
-                        + 2*du3_dz*u1*lambda
-                        + 2*du1_dy*u2*mu 
-                        + 2*du2_dx*u2*mu 
-                        + 2*du1_dz*u3*mu 
-                        + 2*du3_dx*u3*mu 
-                        + 2*du1_dx*u1*(lambda + 2*mu) 
-                        + 2*cv*T*u1*rho 
-                        - pow(u1,3)*rho 
-                        - u1*u2*u2*rho 
-                        - u1*u3*u3*rho 
-                        - 2*cv*T*u1*gma*rho 
-                        + pow(u1,3)*gma*rho 
-                        + u1*u2*u2*gma*rho 
-                        + u1*u3*u3*gma*rho)/2/rho;
-
-                    mat(4,1) = (du1_dx*lambda + du2_dy*lambda + du3_dz*lambda + 2*du1_dx*mu + cv*T*rho - u1*u1*rho - cv*T*gma*rho + u1*u1*gma*rho)/rho;
-                    mat(4,2) = u1*u2*(-1+gma) + (du1_dy+du2_dx)*mu/rho*u1*u3*(-1+gma) + (du1_dz+du3_dx)*mu/rho;
-                    mat(4,3) = u1*u3*(-1+gma)+(du1_dz+du3_dx)*mu/rho;
-                    mat(4,4) = u1-u1*gma;
-                    break;
+                    mat(3,0) = d
                 }
 
                 case 2: {
