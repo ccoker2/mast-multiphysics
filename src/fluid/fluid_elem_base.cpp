@@ -1050,27 +1050,78 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
 
     // calculate dp_dprim (total derivative)
     Real
-    dp_drho = (gma-1)*(dEt_drho - 1/2*(u1*u1 + u2*u2 + u3*u3);
+    dp_drho = (gma-1)*(dEt_drho - 1/2*(u1*u1 + u2*u2 + u3*u3)),
     dp_du1  = (gma-1)*(dEt_du1 - u1*rho),
     dp_du2  = (gma-1)*(dEt_du2 - u2*rho),
     dp_du3  = (gma-1)*(dEt_du3 - u3*rho),
     dp_dT   = (gma-1)*dEt_dT;
 
-    // calculate dtau_drho (total derivative)
+    // derivative of Sutherland's law w.r.t. T
+    Real
+    dmu_dT = (1.5*pow(1.458*10,-6)*pow(T,0.5))/(T+110.4) - (pow(1.458*10,-6)*pow(T,1.5))*pow(T+110.4,-2);
+
+    // calculate dtau11_dprim (total derivative)
     Real
     dtau11_drho = -dp_drho,
-    dtau12_drho = 0,
-    dtau13_drho = 0,
-    dtau21_drho = 0,
-    dtau22_drho = -dp_drho,
-    dtau23_drho = 0,
-    dtau31_drho = 0,
-    dtau32_drho = 0,
-    dtau33_drho = -dp_drho,
+    dtau11_du1  = -dp_du1 + 2*lambda*u1,
+    dtau11_du2  = -dp_du2 + 2*lambda*u2,
+    dtau11_du3  = -dp_du3 + 2*lambda*u3,
+    dtau11_dT   = -dp_dT  + 2*dmu_dT*du1_dx;
 
-    // calculate dtau_du1
+    // calculate dtau22_dprim
     Real
-    dtau11_du1 = -dp_du1
+    dtau22_drho = -dp_drho,
+    dtau22_du1  = -dp_du1 + 2*lambda*u1,
+    dtau22_du2  = -dp_du2 + 2*lambda*u2,
+    dtau22_du3  = -dp_du3 + 2*lambda*u3,
+    dtau22_dT   = -dp_dT  + 2*dmu_dT*du2_dy;
+
+    // calculate dtau33_dprim
+    Real
+    dtau33_drho = -dp_drho,
+    dtau33_du1  = -dp_du1 + 2*lambda*u1,
+    dtau33_du2  = -dp_du2 + 2*lambda*u2,
+    dtau33_du3  = -dp_du3 + 2*lambda*u3,
+    dtau33_dT   = -dp_dT  + 2*dmu_dT*du3_dz;
+
+    // calculate dtau12_dprim and dtau21_dprim
+    Real
+    dtau12_drho = 0,
+    dtau12_du1  = 0,
+    dtau12_du2  = 0,
+    dtau12_du3  = 0,
+    dtau12_dT   = dmu_dT*(du1_dy+du2_dx),
+    dtau21_drho = 0,
+    dtau21_du1  = 0,
+    dtau21_du2  = 0,
+    dtau21_du3  = 0,
+    dtau21_dT   = dtau12_dT;
+
+    // calculate dtau13_dprim and dtau31_dprim
+    Real
+    dtau13_drho = 0,
+    dtau13_du1  = 0,
+    dtau13_du2  = 0,
+    dtau13_du3  = 0,
+    dtau13_dT   = dmu_dT*(du1_dz+du3_dx),
+    dtau31_drho = 0,
+    dtau31_du1  = 0,
+    dtau31_du2  = 0,
+    dtau31_du3  = 0,
+    dtau31_dT   = dtau13_dT;
+
+    // calculate dtau23_dprim and dtau32_dprim
+    Real
+    dtau23_drho = 0,
+    dtau23_du1  = 0,
+    dtau23_du2  = 0,
+    dtau23_du3  = 0,
+    dtau23_dT   = dmu_dT*(du2_dz+du3_dy),
+    dtau32_drho = 0,
+    dtau32_du1  = 0,
+    dtau32_du2  = 0,
+    dtau32_du3  = 0,
+    dtau32_dT   = dtau13_dT;
 
     // calculate dprim_dcons
     RealMatrixX
