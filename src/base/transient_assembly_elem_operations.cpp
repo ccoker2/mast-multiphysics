@@ -59,7 +59,7 @@ namespace MAST {
         unsigned int
                 m0_rows = (unsigned int) m0.rows(),
                 m0_cols = (unsigned int) m0.cols(),
-                n_passes,
+                n_passes = m0_rows*m0_cols,
                 k=0;
         Real
                 max_err,
@@ -85,21 +85,18 @@ namespace MAST {
                          << "diff: " << m0(i, j) - m(i, j) << " , "
                          << "tol: " << tol << std::endl;
                     pass = false;
+                    n_passes--;
                 }
                 errs(k) = m0(i, j) - m(i, j);
                 passes(k) = pass;
                 k++;
             }
         }
-        max_err = errs.cwiseAbs().maxCoeff();
-        min_err = errs.cwiseAbs().minCoeff();
         mean_err = errs.mean();
-        n_passes = (passes.array() != 0).count();
 
-        libMesh::out << "Max error: " << max_err << ", "
-        << " Min error: " << min_err
-        << " Mean error: " << mean_err
-        << " Number of elements within tolerance " << n_passes << std::endl;
+        libMesh::out
+        << "Mean error: " << mean_err << ", "
+        << " Number of elements within tolerance: " << n_passes << " out of " << m0_rows*m0_cols << std::endl;
 
         return pass;
     }
@@ -207,7 +204,7 @@ MAST::TransientAssemblyElemOperations
 //            << jac
 //            << std::endl << std::endl;
 
-    MAST::transient_compare_matrix(jac, f_x_jac0, 1.0e1);
+    MAST::transient_compare_matrix(jac, f_x_jac0, 1.0e-1);
     // set the original solution vector for the element
 
 //    // write the numerical and analytical mass matrices
