@@ -219,7 +219,6 @@ namespace MAST {
                                                     const RealMatrixX& stress_tensor,
                                                     const RealMatrixX& temp_gradient,
                                                     const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
-                                                    const RealMatrixX& dprim_dcons,
                                                     RealMatrixX& mat);
 
         void

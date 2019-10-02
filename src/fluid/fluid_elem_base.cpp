@@ -977,14 +977,9 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
                                         const RealMatrixX& stress_tensor,
                                         const RealMatrixX& temp_gradient,
                                         const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
-                                        const RealMatrixX& dprim_dcons,
                                         RealMatrixX& mat) {
 
     const unsigned int n1 = dim + 2;
-
-    RealVectorX
-            dcons_dx = RealVectorX::Zero(n1);
-
 
     mat.setZero();
 
@@ -1001,7 +996,6 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
             cv = flight_condition->gas_property.cv,
             gma = flight_condition->gas_property.gamma;
 
-
     Real
     du1_dz = 0,
     du2_dz = 0,
@@ -1012,33 +1006,6 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
     du1_dx = 0,
     du2_dx = 0,
     du3_dx = 0;
-
-
-    // calculate spatial derivatives of velocities
-    switch (dim) {
-        case 3: {
-            dB_mat[2].vector_mult(dcons_dx, elem_sol); // dUcons/dx_i
-            RealVectorX dprim_dz = dprim_dcons * dcons_dx; // dUprim/dx_i
-            du1_dz = dprim_dz(1);
-            du2_dz = dprim_dz(2);
-            du3_dz = dprim_dz(3);
-        }
-        case 2: {
-            dB_mat[1].vector_mult(dcons_dx, elem_sol); // dUcons/dx_i
-            RealVectorX dprim_dy = dprim_dcons * dcons_dx; // dUprim/dx_i
-            du1_dy = dprim_dy(1);
-            du2_dy = dprim_dy(2);
-            du3_dy = dprim_dy(3);
-        }
-        case 1: {
-            dB_mat[0].vector_mult(dcons_dx, elem_sol); // dUcons/dx_i
-            RealVectorX dprim_dx = dprim_dcons * dcons_dx; // dUprim/dx_i
-            du1_dx = dprim_dx(1);
-            du2_dx = dprim_dx(2);
-            du3_dx = dprim_dx(3);
-            break;
-        }
-    }
 
     // calculate derivatives of total energy w.r.t. primitive variables
     Real
@@ -1135,72 +1102,80 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
       case 2: {
             dprim_dcons(2,0)  = -u2/rho;
             dprim_dcons(2,2)  = 1/rho;
-            dprim_dcons(n1,2) = -dEt_du2/rho/dEt_dT;
+            dprim_dcons(n1-1,2) = -dEt_du2/rho/dEt_dT;
       }
       case 1: {
             dprim_dcons(0,0)   = 1;
             dprim_dcons(1,0)   = -u1/rho;
             dprim_dcons(1,1)   = 1/rho;
-            dprim_dcons(n1,0)  = (u3*dEt_du3 + u2*dEt_du2 + u1*dEt_du1 - rho*dEt_drho)/(rho*dEt_dT);
-            dprim_dcons(n1,1)  = -dEt_du1/rho/dEt_dT;
-            dprim_dcons(n1,n1) = 1/dEt_dT;
+            dprim_dcons(n1-1,0)  = (u3*dEt_du3 + u2*dEt_du2 + u1*dEt_du1 - rho*dEt_drho)/(rho*dEt_dT);
+            dprim_dcons(n1-1,1)  = -dEt_du1/rho/dEt_dT;
+            dprim_dcons(n1-1,n1-1) = 1/dEt_dT;
             break;
       }
     }
 
+Real
+tau11 = 0,
+tau12 = 0,
+tau13 = 0,
+tau21 = 0,
+tau22 = 0,
+tau23 = 0,
+tau31 = 0,
+tau32 = 0,
+tau33 = 0;
+
     // stress tensor
-    Real
-    tau11 = stress_tensor(1,1),
-    tau12 = stress_tensor(1,2),
-    tau13 = stress_tensor(1,3),
-    tau21 = stress_tensor(2,1),
-    tau22 = stress_tensor(2,2),
-    tau23 = stress_tensor(2,3),
-    tau31 = stress_tensor(3,1),
-    tau32 = stress_tensor(3,2),
-    tau33 = stress_tensor(3,3);
+    switch (dim) {
+        case 3: {
+            tau13 = stress_tensor(0,2);
+            tau31 = stress_tensor(2,0);
+            tau23 = stress_tensor(1,2);
+            tau32 = stress_tensor(2,1);
+            tau33 = stress_tensor(2,2);
+        }
+        case 2: {
+            tau12 = stress_tensor(0,1);
+            tau21 = stress_tensor(1,0);
+            tau22 = stress_tensor(1,1);
+        }
+        case 1: {
+            tau11 = stress_tensor(0,0);
+            break;
+        }
+    }
 
-    // derivative of stress tensor w.r.t. density
-    dtau11_drho = 
-
-    // calculate dfv(flux_dim)_dprim
+    // calculate derivative of diffusion flux w.r.t. primitive variables
     switch (flux_dim) {
         case 0: {
             switch (dim) {
                 case 3: {
-                    mat(3,0) = d
+                    mat(1,3) = dtau11_du3;
+                    mat(3,0) = dtau13_drho;
+                    mat(3,1) = dtau13_du1;
+                    mat(3,2) = dtau13_du2;
+                    mat(3,3) = dtau13_du3;
+                    mat(3, n1-1)    = dtau13_dT;
+                    mat(n1-1,3) = tau13 + u1*dtau11_du3 + u2*dtau12_du3 + u3*dtau13_du3;
+                    mat(2,3) = dtau12_du3;
                 }
-
                 case 2: {
-                    mat(1,0) = -1/2 * (u1*u1 + u2*u2)*(gma-1);
-                    mat(1,1) = u1*(gma-1);
-                    mat(1,2) = u2*(gma-1);
-                    mat(1,3) = 1-gma;
-                    mat(3,0) = -(2*du2_dy*u1*lambda
-                        + 2*du1_dy*u2*mu
-                        + 2*du2_dx*u2*mu
-                        + 2*du1_dx*u1*(lambda+2*mu)
-                        + 2*cv*T*u1*rho
-                        - pow(u1,3)*rho
-                        - u1*u2*u2*rho
-                        - 2*cv*T*u1*gma*rho
-                        + pow(u1,3)*gma*rho
-                        + u1*u2*u2*gma*rho)/2/rho;
-                    mat(3,1) = (du2_dy*lambda + du1_dx * (lambda+2*mu)-(cv*T-u1*u1)*(-1+gma)*rho)/rho;
-                    mat(3,2) = u1*u2*(-1+gma) + (du1_dy + du2_dx)*mu/rho;
-                    mat(3,3) = u1 - u1*gma;
-                    break;
+                    mat(1,2) = dtau11_du2;
+                    mat(2,0) = dtau12_drho;
+                    mat(2,1) = dtau12_du1;
+                    mat(2,2) = dtau12_du2;
+                    mat(2, n1-1)    = dtau12_dT;
+                    mat(n1-1,2) = tau12 + u1*dtau11_du2 + u2*dtau12_du2 + u3*dtau13_du2;
                 }
 
                 case 1: {
-                    mat(1,0) = -1/2*(gma-1)*pow(u1,2);
-                    mat(1,1) = u1*(gma-1);
-                    mat(1,2) = 1 - gma;
-
-                    mat(2,0) = -1/2*u1 * (-2*cv*T + u1*u1) * (gma-1)
-                      - du1_dx*u1 * (lambda + 2*mu) / rho;
-                    mat(2,1) = cv*T * (1-gma) + du1_dx * (lambda + 2*mu) / rho + (gma-1)*u1*u1;
-                    mat(2,2) = u1 - gma*u1;
+                    mat(1,0) = dtau11_drho;
+                    mat(1,1) = dtau11_du1;
+                    mat(1,n1-1)     = dtau11_dT;
+                    mat(n1-1,0) = u1*dtau11_drho + u2*dtau12_drho + u3*dtau13_drho;
+                    mat(n1-1,1) = tau11 + u1*dtau11_du1 + u2*dtau12_du1 + u3*dtau13_du1;
+                    mat(n1-1,n1-1) = u1*dtau11_dT + u2*dtau12_dT + u3*dtau13_dT;
                     break;
                 }
             }
@@ -1209,48 +1184,30 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
         case 1: {
             switch (dim) {
                 case 3: {
-                    mat(2,0) = -1/2*(u1*u1 + u2*u2 + u3*u3)*(-1+gma);
-                    mat(2,1) = u1*(-1+gma);
-                    mat(2,2) = u2*(-1+gma);
-                    mat(2,3) = u3*(-1+gma);
-                    mat(2,4) = 1-gma;
-                    mat(4,0) = -(2*du1_dx*u2*lambda
-                        + 2*du3_dz*u2*lambda
-                        + 2*du1_dy*u1*mu
-                        + 2*du2_dx*u1*mu
-                        + 2*du2_dz*u3*mu
-                        + 2*du3_dy*u3*mu
-                        + 2*du2_dy*u2*(lambda + 2*mu)
-                        + 2*cv*T*u2*rho
-                        - u1*u1*u2*rho
-                        - pow(u2,3)*rho
-                        - u2*u3*u3*rho
-                        - 2*cv*T*u2*gma*rho
-                        + u1*u1*u2*gma*rho
-                        + pow(u2,3)*gma*rho
-                        + u2*u3*u3*gma*rho)/2/rho;
-                    mat(4,1) = u1*u2*(-1+gma)+(du1_dy+du2_dx)*mu/rho;
-                    mat(4,2) = (du1_dx*lambda
-                        + du2_dy*lambda 
-                        + du3_dz*lambda 
-                        + 2*du2_dy*mu 
-                        + cv*T*rho 
-                        - u2*u2*rho 
-                        - cv*T*gma*rho 
-                        + u2*u2*gma*rho)/rho;
-                    mat(4,3) = u2*u3*(-1+gma)+(du2_dz+du3_dy)*mu/rho;
-                    mat(4,4) = u2 - u2*gma;
-                    break;
+                    mat(1,3) = dtau21_du3;
+                    mat(3,0) = dtau23_drho;
+                    mat(3,1) = dtau23_du1;
+                    mat(3,2) = dtau23_du2;
+                    mat(3,3) = dtau23_du3;
+                    mat(3, n1-1)    = dtau23_dT;
+                    mat(n1-1,3) = tau23 + u1*dtau21_du3 + u2*dtau22_du3 + u3*dtau23_du3;
+                    mat(2,3) = dtau22_du3;
                 }
                 case 2: {
-                    mat(2,0) = -1/2*(u1*u1 + u2*u2)*(-1+gma);
-                    mat(2,1) = u1*(-1+gma);
-                    mat(2,2) = u2*(-1+gma);
-                    mat(2,3) = 1-gma;
-                    mat(3,0) = -(2*du1_dx*u2*lambda + 2*du1_dy*u1*mu + 2*du2_dx*u1*mu + 2*du2_dy*u2*(lambda+2*mu) + 2*cv*T*u2*rho - u1*u1*u2*rho - pow(u2,3)*rho - 2*cv*T*u2*gma*rho + u1*u1*u2*gma*rho + pow(u2,3)*gma*rho)/2/rho;
-                    mat(3,1) = u2*u2*(-1+gma) + (du1_dy+du2_dx)*mu/rho;
-                    mat(3,2) = (du1_dx*lambda + du2_dy*(lambda+2*mu)-(cv*T-u2*u2)*(-1+gma)*rho)/rho;
-                    mat(3,3) = u2-u2*gma;
+                    mat(1,2) = dtau21_du2;
+                    mat(2,0) = dtau22_drho;
+                    mat(2,1) = dtau22_du1;
+                    mat(2,2) = dtau22_du2;
+                    mat(2, n1-1)    = dtau22_dT;
+                    mat(n1-1,2) = tau22 + u1*dtau21_du2 + u2*dtau22_du2 + u3*dtau23_du2;
+                }
+                case 1: {
+                    mat(1,0) = dtau21_drho;
+                    mat(1,1) = dtau21_du1;
+                    mat(1,n1-1)     = dtau21_dT;
+                    mat(n1-1,0) = u1*dtau21_drho + u2*dtau22_drho + u3*dtau23_drho;
+                    mat(n1-1,1) = tau21 + u1*dtau21_du1 + u2*dtau22_du1 + u3*dtau23_du1;
+                    mat(n1-1,n1-1) = u1*dtau21_dT + u2*dtau22_dT + u3*dtau23_dT;
                     break;
                 }
             }
@@ -1259,37 +1216,37 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
         case 2: {
             switch (dim) {
                 case 3: {
-                    mat(3,0) = -1/2*(u1*u1 + u2*u2 + u3*u3)*(-1+gma);
-                    mat(3,1) = u1*(-1+gma);
-                    mat(3,2) = u2*(-1+gma);
-                    mat(3,3) = u3*(-1+gma);
-                    mat(3,4) = 1-gma;
-                    mat(4,0) = -(2*du1_dx*u3*lambda
-                        + 2*du2_dy*u3*lambda
-                        + 2*du3_dz*u3*lambda
-                        + 2*du1_dz*u1*mu
-                        + 2*du3_dx*u1*mu
-                        + 2*du2_dz*u2*mu
-                        + 2*du3_dy*u2*mu
-                        + 4*du3_dz*u3*mu
-                        + 2*cv*T*u3*rho
-                        - u1*u1*u3*rho
-                        - u2*u2*u3*rho
-                        - pow(u3,3)*rho
-                        - 2*cv*T*u3*gma*rho
-                        + u1*u1*u3*gma*rho
-                        + u2*u2*u3*gma*rho
-                        + pow(u3,3)*gma*rho)/2/rho;
-                    mat(4,1) = u1*u3*(-1+gma)+(du1_dz+du3_dx)*mu/rho;
-                    mat(4,2) = u2*u3*(-1+gma)+(du2_dz+du3_dy)*mu/rho;
-                    mat(4,3) = (du1_dx*lambda + du2_dy*lambda + du3_dz*lambda + 2*du3_dz*mu + cv*T*rho - u3*u3*rho - cv*T*gma*rho+u3*u3*gma*rho)/rho;
-                    mat(4,4) = u3 - u3*gma;
+                    mat(1,3) = dtau31_du3;
+                    mat(3,0) = dtau33_drho;
+                    mat(3,1) = dtau33_du1;
+                    mat(3,2) = dtau33_du2;
+                    mat(3,3) = dtau33_du3;
+                    mat(3, n1-1)    = dtau23_dT;
+                }
+                case 2: {
+                    mat(1,2) = dtau31_du2;
+                    mat(2,0) = dtau32_drho;
+                    mat(2,1) = dtau32_du1;
+                    mat(2,2) = dtau32_du2;
+                    mat(2,3) = dtau32_du3;
+                    mat(2, n1-1)    = dtau32_dT;
+                }
+                case 1: {
+                    mat(1,0) = dtau31_drho;
+                    mat(1,1) = dtau31_du1;
+                    mat(1,n1-1)     = dtau31_dT;
+                    mat(n1-1,0) = u1*dtau31_drho + u2*dtau32_drho + u3*dtau33_drho;
+                    mat(n1-1,1) = tau31 + u1*dtau31_du1 + u2*dtau32_du1 + u3*dtau33_du1;
+                    mat(n1-1,2) = tau32 + u1*dtau31_du2 + u2*dtau32_du2 + u3*dtau33_du2;
+                    mat(n1-1,3) = tau33 + u1*dtau31_du3 + u2*dtau32_du3 + u3*dtau33_du3;
+                    mat(n1-1,n1-1) = u1*dtau21_dT + u2*dtau22_dT + u3*dtau23_dT;
                     break;
                 }
             }
             break;
         }
     }
+    mat = mat*dprim_dcons;
 }
 
 
