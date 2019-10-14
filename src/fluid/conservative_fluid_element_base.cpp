@@ -94,6 +94,9 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
     
     std::vector<RealMatrixX>
     Ai_adv  (dim);
+
+    std::vector<RealMatrixX>
+    Ai_adv_cons  (dim);
     
     std::vector<std::vector<RealMatrixX> >
     Ai_sens  (dim);
@@ -102,6 +105,7 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
     for (unsigned int i=0; i<dim; i++) {
         Ai_sens [i].resize(n1);
         Ai_adv  [i].setZero(n1, n1);
+        Ai_adv_cons[i].setZero(n1,n1);
         for (unsigned int j=0; j<n1; j++)
             Ai_sens[i][j].setZero(n1, n1);
     }
@@ -251,8 +255,8 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
                 if (if_viscous()) {
                     
                     for (unsigned int j_dim=0; j_dim<dim; j_dim++) {
-                        
-                        // implicit term
+
+                        // w.r.t. conservative variable gradient
                         calculate_diffusion_flux_jacobian(i_dim,
                                                           j_dim,
                                                           primitive_sol,
@@ -264,14 +268,13 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
 
                     }
 
-                    // explicit term
+                    // w.r.t. conservative variables
                     calculate_diffusion_flux_jacobian_cons(i_dim,
                                                            primitive_sol,
                                                            _sol,                          // local element solution
                                                            stress,
                                                            temp_grad,
                                                            dBmat,
-                                                           dprim_dcons,
                                                            mat1_n1n1);
                     Bmat.left_multiply(mat3_n1n2,mat1_n1n1);                              // Ki B
                     dBmat[i_dim].right_multiply_transpose(mat4_n2n2,mat3_n1n2);           // dB_i^T Ki B

@@ -228,8 +228,16 @@ namespace MAST {
                                                           const bool zero_kth,
                                                           const MAST::PrimitiveSolution& sol,
                                                           RealMatrixX& mat);
-        
-        
+
+        void
+        calculate_primitive_and_conservative_gradients(const MAST::PrimitiveSolution& sol,
+                                               const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                                               const RealVectorX& elem_sol,
+                                               const RealMatrixX& dprim_dcons,
+                                               std::vector<RealVectorX>& dcons_dx,
+                                               std::vector<RealVectorX>& dprim_dx);
+
+
         void calculate_advection_flux_jacobian_sensitivity_for_conservative_variable
         (const unsigned int calculate_dim,
          const MAST::PrimitiveSolution& sol,

@@ -428,8 +428,8 @@ MAST::FluidElemBase::
 calculate_advection_flux_jacobian(const unsigned int calculate_dim,
                                   const MAST::PrimitiveSolution& sol,
                                   RealMatrixX& mat) {
-    
-    
+
+
     // calculate Ai = d F_adv / d x_i, where F_adv is the Euler advection flux vector
     
     const unsigned int n1 = 2 + dim;
@@ -967,6 +967,38 @@ calculate_diffusion_flux_jacobian (const unsigned int flux_dim,
     }
 }
 
+void
+MAST::FluidElemBase::
+calculate_primitive_and_conservative_gradients(const MAST::PrimitiveSolution& sol,
+                                       const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                                       const RealVectorX& elem_sol,
+                                       const RealMatrixX& dprim_dcons,
+                                       std::vector<RealVectorX>& dcons_dx,
+                                       std::vector<RealVectorX>& dprim_dx) {
+
+
+
+    const unsigned int n1 = dim + 2;
+
+    switch (dim) {
+        case 3: {
+            dcons_dx[2] = RealVectorX::Zero(n1);
+            dB_mat[2].vector_mult(dcons_dx[2], elem_sol);
+            dprim_dx[2] = dprim_dcons*dcons_dx[2];
+        }
+        case 2: {
+            dcons_dx[1] = RealVectorX::Zero(n1);
+            dB_mat[1].vector_mult(dcons_dx[1], elem_sol);
+            dprim_dx[1] = dprim_dcons*dcons_dx[1];
+        }
+        case 1: {
+            dcons_dx[0] = RealVectorX::Zero(n1);
+            dB_mat[0].vector_mult(dcons_dx[0], elem_sol);
+            dprim_dx[0] = dprim_dcons*dcons_dx[0];
+            break;
+        }
+    }
+}
 
 
 void
@@ -993,189 +1025,93 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
             lambda = sol.lambda,
             kth = sol.k_thermal,
             T = sol.T,
+            R = sol.cp - sol.cv,
             cv = flight_condition->gas_property.cv,
             gma = flight_condition->gas_property.gamma;
 
-    Real
-    du1_dz = 0,
-    du2_dz = 0,
-    du3_dz = 0,
-    du1_dy = 0,
-    du2_dy = 0,
-    du3_dy = 0,
-    du1_dx = 0,
-    du2_dx = 0,
-    du3_dx = 0;
+    const Real
+    dmu_dT = -1.458*pow(10,-6)*pow(T,1.5)/pow((T+110.4),2) + 2.187*pow(10,-6)*pow(T,0.5)/(110.4+T);
 
-    // calculate derivatives of total energy w.r.t. primitive variables
-    Real
-    dEt_drho = cv*T + 1/2*(u1*u1 + u2*u2 + u3*u3),
-    dEt_du1  = u1*rho,
-    dEt_du2  = u2*rho,
-    dEt_du3  = u3*rho,
-    dEt_dT   = cv*rho;
 
-    // calculate dp_dprim (total derivative)
-    Real
-    dp_drho = (gma-1)*(dEt_drho - 1/2*(u1*u1 + u2*u2 + u3*u3)),
-    dp_du1  = (gma-1)*(dEt_du1 - u1*rho),
-    dp_du2  = (gma-1)*(dEt_du2 - u2*rho),
-    dp_du3  = (gma-1)*(dEt_du3 - u3*rho),
-    dp_dT   = (gma-1)*dEt_dT;
-
-    // derivative of Sutherland's law w.r.t. T
-    Real
-    dmu_dT = (1.5*pow(1.458*10,-6)*pow(T,0.5))/(T+110.4) - (pow(1.458*10,-6)*pow(T,1.5))*pow(T+110.4,-2);
-
-    // calculate dtau11_dprim (total derivative)
-    Real
-    dtau11_drho = -dp_drho,
-    dtau11_du1  = -dp_du1 + 2*lambda*u1,
-    dtau11_du2  = -dp_du2 + 2*lambda*u2,
-    dtau11_du3  = -dp_du3 + 2*lambda*u3,
-    dtau11_dT   = -dp_dT  + 2*dmu_dT*du1_dx;
-
-    // calculate dtau22_dprim
-    Real
-    dtau22_drho = -dp_drho,
-    dtau22_du1  = -dp_du1 + 2*lambda*u1,
-    dtau22_du2  = -dp_du2 + 2*lambda*u2,
-    dtau22_du3  = -dp_du3 + 2*lambda*u3,
-    dtau22_dT   = -dp_dT  + 2*dmu_dT*du2_dy;
-
-    // calculate dtau33_dprim
-    Real
-    dtau33_drho = -dp_drho,
-    dtau33_du1  = -dp_du1 + 2*lambda*u1,
-    dtau33_du2  = -dp_du2 + 2*lambda*u2,
-    dtau33_du3  = -dp_du3 + 2*lambda*u3,
-    dtau33_dT   = -dp_dT  + 2*dmu_dT*du3_dz;
-
-    // calculate dtau12_dprim and dtau21_dprim
-    Real
-    dtau12_drho = 0,
-    dtau12_du1  = 0,
-    dtau12_du2  = 0,
-    dtau12_du3  = 0,
-    dtau12_dT   = dmu_dT*(du1_dy+du2_dx),
-    dtau21_drho = 0,
-    dtau21_du1  = 0,
-    dtau21_du2  = 0,
-    dtau21_du3  = 0,
-    dtau21_dT   = dtau12_dT;
-
-    // calculate dtau13_dprim and dtau31_dprim
-    Real
-    dtau13_drho = 0,
-    dtau13_du1  = 0,
-    dtau13_du2  = 0,
-    dtau13_du3  = 0,
-    dtau13_dT   = dmu_dT*(du1_dz+du3_dx),
-    dtau31_drho = 0,
-    dtau31_du1  = 0,
-    dtau31_du2  = 0,
-    dtau31_du3  = 0,
-    dtau31_dT   = dtau13_dT;
-
-    // calculate dtau23_dprim and dtau32_dprim
-    Real
-    dtau23_drho = 0,
-    dtau23_du1  = 0,
-    dtau23_du2  = 0,
-    dtau23_du3  = 0,
-    dtau23_dT   = dmu_dT*(du2_dz+du3_dy),
-    dtau32_drho = 0,
-    dtau32_du1  = 0,
-    dtau32_du2  = 0,
-    dtau32_du3  = 0,
-    dtau32_dT   = dtau13_dT;
-
-    // calculate dprim_dcons
     RealMatrixX
-    dprim_dcons = RealMatrixX::Zero(n1,n1);
-    switch (dim) {
-      case 3: {
-            dprim_dcons(3,0)  = -u3/rho;
-            dprim_dcons(3,3)  = 1/rho;
-            dprim_dcons(n1,3) = -dEt_du3/rho/dEt_dT;
-      }
-      case 2: {
-            dprim_dcons(2,0)  = -u2/rho;
-            dprim_dcons(2,2)  = 1/rho;
-            dprim_dcons(n1-1,2) = -dEt_du2/rho/dEt_dT;
-      }
-      case 1: {
-            dprim_dcons(0,0)   = 1;
-            dprim_dcons(1,0)   = -u1/rho;
-            dprim_dcons(1,1)   = 1/rho;
-            dprim_dcons(n1-1,0)  = (u3*dEt_du3 + u2*dEt_du2 + u1*dEt_du1 - rho*dEt_drho)/(rho*dEt_dT);
-            dprim_dcons(n1-1,1)  = -dEt_du1/rho/dEt_dT;
-            dprim_dcons(n1-1,n1-1) = 1/dEt_dT;
-            break;
-      }
-    }
+    dcons_dprim = RealMatrixX::Zero(n1, n1),
+    dprim_dcons = RealMatrixX::Zero(n1, n1);
 
-Real
-tau11 = 0,
-tau12 = 0,
-tau13 = 0,
-tau21 = 0,
-tau22 = 0,
-tau23 = 0,
-tau31 = 0,
-tau32 = 0,
-tau33 = 0;
 
-    // stress tensor
+    // calculate variable Jacobian
+    calculate_conservative_variable_jacobian(sol,
+                                             dcons_dprim,
+                                             dprim_dcons);
+
+
+    // calculate spatial derivatives
+    std::vector<RealVectorX>
+    dcons_dx(dim);
+
+    std::vector<RealVectorX>
+            dprim_dx(dim);
+
+    calculate_primitive_and_conservative_gradients(sol, dB_mat, elem_sol, dprim_dcons, dcons_dx, dprim_dx);
+
+
+    Real
+            du1_dz = 0,
+            du2_dz = 0,
+            du3_dz = 0,
+            du1_dy = 0,
+            du2_dy = 0,
+            du3_dy = 0,
+            du1_dx = 0,
+            du2_dx = 0,
+            du3_dx = 0;
+
     switch (dim) {
         case 3: {
-            tau13 = stress_tensor(0,2);
-            tau31 = stress_tensor(2,0);
-            tau23 = stress_tensor(1,2);
-            tau32 = stress_tensor(2,1);
-            tau33 = stress_tensor(2,2);
+            dprim_dx[2] = RealVectorX::Zero(n1);
+            dprim_dx[2] = dprim_dcons*dcons_dx[2];
+            du1_dz = dprim_dx[2](1);
+            du2_dz = dprim_dx[2](2);
+            du3_dz = dprim_dx[2](3);
+            du3_dy = dprim_dx[1](3);
+            du3_dx = dprim_dx[0](3);
         }
         case 2: {
-            tau12 = stress_tensor(0,1);
-            tau21 = stress_tensor(1,0);
-            tau22 = stress_tensor(1,1);
+            dprim_dx[1] = RealVectorX::Zero(n1);
+            dprim_dx[1] = dprim_dcons*dcons_dx[1];
+            du1_dy = dprim_dx[1](1);
+            du2_dy = dprim_dx[1](2);
+            du2_dx = dprim_dx[0](2);
         }
         case 1: {
-            tau11 = stress_tensor(0,0);
+            dprim_dx[0] = RealVectorX::Zero(n1);
+            dprim_dx[0] = dprim_dcons*dcons_dx[0];
+            du1_dx = dprim_dx[0](1);
             break;
         }
     }
+
+
 
     // calculate derivative of diffusion flux w.r.t. primitive variables
     switch (flux_dim) {
         case 0: {
             switch (dim) {
                 case 3: {
-                    mat(1,3) = dtau11_du3;
-                    mat(3,0) = dtau13_drho;
-                    mat(3,1) = dtau13_du1;
-                    mat(3,2) = dtau13_du2;
-                    mat(3,3) = dtau13_du3;
-                    mat(3, n1-1)    = dtau13_dT;
-                    mat(n1-1,3) = tau13 + u1*dtau11_du3 + u2*dtau12_du3 + u3*dtau13_du3;
-                    mat(2,3) = dtau12_du3;
+                    mat(1,3)  = 2*u3*lambda;
+                    mat(n1-1, 3)        = 2*u1*u3*lambda + mu*(du1_dz + du3_dx);
                 }
                 case 2: {
-                    mat(1,2) = dtau11_du2;
-                    mat(2,0) = dtau12_drho;
-                    mat(2,1) = dtau12_du1;
-                    mat(2,2) = dtau12_du2;
-                    mat(2, n1-1)    = dtau12_dT;
-                    mat(n1-1,2) = tau12 + u1*dtau11_du2 + u2*dtau12_du2 + u3*dtau13_du2;
+                    mat(1,2)  = 2*u2*lambda;
+                    mat(n1-1, 2)        = 2*u1*u2*lambda + mu*(du1_dy + du2_dx);
                 }
 
                 case 1: {
-                    mat(1,0) = dtau11_drho;
-                    mat(1,1) = dtau11_du1;
-                    mat(1,n1-1)     = dtau11_dT;
-                    mat(n1-1,0) = u1*dtau11_drho + u2*dtau12_drho + u3*dtau13_drho;
-                    mat(n1-1,1) = tau11 + u1*dtau11_du1 + u2*dtau12_du1 + u3*dtau13_du1;
-                    mat(n1-1,n1-1) = u1*dtau11_dT + u2*dtau12_dT + u3*dtau13_dT;
+                    mat(1,0)       = -R*T;
+                    mat(1,1)       = 2*u1*lambda;
+                    mat(1,n1-1 )   = -R*rho;
+                    mat(n1-1,0)    = -R*T*u1;
+                    mat(n1-1,1 )   = 3*u1*u1*lambda + u2*u2*lambda + u3*u3*lambda - R*T*rho + 2*mu*du1_dx;
+                    mat(n1-1,n1-1) = -R*u1*rho;
                     break;
                 }
             }
@@ -1184,30 +1120,20 @@ tau33 = 0;
         case 1: {
             switch (dim) {
                 case 3: {
-                    mat(1,3) = dtau21_du3;
-                    mat(3,0) = dtau23_drho;
-                    mat(3,1) = dtau23_du1;
-                    mat(3,2) = dtau23_du2;
-                    mat(3,3) = dtau23_du3;
-                    mat(3, n1-1)    = dtau23_dT;
-                    mat(n1-1,3) = tau23 + u1*dtau21_du3 + u2*dtau22_du3 + u3*dtau23_du3;
-                    mat(2,3) = dtau22_du3;
+                    mat(2, 3) = 2*u3*lambda;
+                    mat(n1-1, 3) = 2*u2*u3*lambda + mu*(du2_dz + du3_dy);
                 }
                 case 2: {
-                    mat(1,2) = dtau21_du2;
-                    mat(2,0) = dtau22_drho;
-                    mat(2,1) = dtau22_du1;
-                    mat(2,2) = dtau22_du2;
-                    mat(2, n1-1)    = dtau22_dT;
-                    mat(n1-1,2) = tau22 + u1*dtau21_du2 + u2*dtau22_du2 + u3*dtau23_du2;
+                    mat(2, 0) = -R*T;
+                    mat(2, 1) = 2*u1*lambda;
+                    mat(2, 2) = 2*u2*lambda;
+                    mat(2, n1-1) = -R*rho;
+                    mat(n1-1, 2) = u1*u1*lambda + 3*u2*u2*lambda + u3*u3*lambda - R*T*rho + 2*mu*du2_dy;
                 }
                 case 1: {
-                    mat(1,0) = dtau21_drho;
-                    mat(1,1) = dtau21_du1;
-                    mat(1,n1-1)     = dtau21_dT;
-                    mat(n1-1,0) = u1*dtau21_drho + u2*dtau22_drho + u3*dtau23_drho;
-                    mat(n1-1,1) = tau21 + u1*dtau21_du1 + u2*dtau22_du1 + u3*dtau23_du1;
-                    mat(n1-1,n1-1) = u1*dtau21_dT + u2*dtau22_dT + u3*dtau23_dT;
+                    mat(n1-1, 0) = -R*T*u2;
+                    mat(n1-1, 1) = 2*u1*u2*lambda + mu*(du1_dy + du2_dx);
+                    mat(n1-1, n1-1) = -R*u2*rho;
                     break;
                 }
             }
@@ -1216,30 +1142,20 @@ tau33 = 0;
         case 2: {
             switch (dim) {
                 case 3: {
-                    mat(1,3) = dtau31_du3;
-                    mat(3,0) = dtau33_drho;
-                    mat(3,1) = dtau33_du1;
-                    mat(3,2) = dtau33_du2;
-                    mat(3,3) = dtau33_du3;
-                    mat(3, n1-1)    = dtau23_dT;
+                    mat(3, 0) = -R*T;
+                    mat(3, 1) = 2*u1*lambda;
+                    mat(3, 2) = 2*u2*lambda;
+                    mat(3, 3) = 2*u3*lambda;
+                    mat(3, n1-1) = -R*rho;
+                    mat(n1-1, 3) = u1*u1*lambda + u2*u2*lambda + 3*u3*u3*lambda - R*T*rho + 2*mu*du3_dz;
                 }
                 case 2: {
-                    mat(1,2) = dtau31_du2;
-                    mat(2,0) = dtau32_drho;
-                    mat(2,1) = dtau32_du1;
-                    mat(2,2) = dtau32_du2;
-                    mat(2,3) = dtau32_du3;
-                    mat(2, n1-1)    = dtau32_dT;
+                    mat(n1-1, 2) = 2*u2*u3*lambda + mu*(du2_dz + du3_dy);
                 }
                 case 1: {
-                    mat(1,0) = dtau31_drho;
-                    mat(1,1) = dtau31_du1;
-                    mat(1,n1-1)     = dtau31_dT;
-                    mat(n1-1,0) = u1*dtau31_drho + u2*dtau32_drho + u3*dtau33_drho;
-                    mat(n1-1,1) = tau31 + u1*dtau31_du1 + u2*dtau32_du1 + u3*dtau33_du1;
-                    mat(n1-1,2) = tau32 + u1*dtau31_du2 + u2*dtau32_du2 + u3*dtau33_du2;
-                    mat(n1-1,3) = tau33 + u1*dtau31_du3 + u2*dtau32_du3 + u3*dtau33_du3;
-                    mat(n1-1,n1-1) = u1*dtau21_dT + u2*dtau22_dT + u3*dtau23_dT;
+                    mat(n1-1, 0) = -R*T*u3;
+                    mat(n1-1, 1) = 2*u1*u3*lambda + mu*(du1_dz + du3_dx);
+                    mat(n1-1,n1-1) = -R*u3*rho;
                     break;
                 }
             }
