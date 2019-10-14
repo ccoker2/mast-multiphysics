@@ -204,7 +204,7 @@ MAST::TransientAssemblyElemOperations
 //            << jac
 //            << std::endl << std::endl;
 
-    MAST::transient_compare_matrix(jac, f_x_jac0, 1.0e-1);
+    MAST::transient_compare_matrix(jac, f_x_jac0, 1.0e0);
     // set the original solution vector for the element
 
 //    // write the numerical and analytical mass matrices
