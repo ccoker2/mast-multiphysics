@@ -658,8 +658,8 @@ protected:
             const unsigned int
             nx_divs             = 3,
             ny_divs             = 1,
-            n_divs_ff_to_panel  = _input("n_divs_farfield_to_panel", "number of element divisions from far-field to panel", 5),
-            n_divs_panel        = _input("n_divs_panel", "number of element divisions on panel", 3);
+            n_divs_ff_to_panel  = _input("n_divs_farfield_to_panel", "number of element divisions from far-field to panel", 30),
+            n_divs_panel        = _input("n_divs_panel", "number of element divisions on panel", 10);
             
             const Real
             length              = _input("panel_l",                                     "length of panel",  0.3),
@@ -694,7 +694,7 @@ protected:
             
             // initialize the mesh
             MAST::PanelMesh2D().init(tc,               // t/c
-                                     false,            // if cos bump
+                                     true,            // if cos bump
                                      1,                // n max bumps
                                      divs,
                                      *_mesh,
