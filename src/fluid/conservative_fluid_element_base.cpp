@@ -86,7 +86,6 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
     RealVectorX
     vec1_n1   = RealVectorX::Zero(n1),
     vec2_n1   = RealVectorX::Zero(n1),
-    elem_sol  = RealVectorX::Zero(n1),
     vec3_n2   = RealVectorX::Zero(n2),
     dc        = RealVectorX::Zero(dim),
     temp_grad = RealVectorX::Zero(dim);
@@ -278,6 +277,16 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
                                                            mat1_n1n1);
                     Bmat.left_multiply(mat3_n1n2,mat1_n1n1);                              // Ki B
                     dBmat[i_dim].right_multiply_transpose(mat4_n2n2,mat3_n1n2);           // dB_i^T Ki B
+
+                    check_element_diffusion_flux_jacobian(i_dim,
+                                                          primitive_sol,
+                                                          _sol,
+                                                          dBmat,
+                                                          Bmat,
+                                                          dprim_dcons,
+                                                          n1,
+                                                          n2);
+
                     jac += JxW[qp]*mat4_n2n2;
 
                 }
