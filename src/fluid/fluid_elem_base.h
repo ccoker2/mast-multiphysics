@@ -22,6 +22,7 @@
 
 // C++ includes
 #include <ostream>
+#include <fstream>
 #include <map>
 
 // MAST includes
@@ -220,6 +221,16 @@ namespace MAST {
                                                     const RealMatrixX& temp_gradient,
                                                     const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
                                                     RealMatrixX& mat);
+
+        void
+        check_element_diffusion_flux_jacobian(const unsigned int flux_dim,
+                                              const MAST::PrimitiveSolution& sol,
+                                              const RealVectorX& elem_sol,
+                                              const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                                              const MAST::FEMOperatorMatrix& Bmat,
+                                              const RealMatrixX& dprim_dcons,
+                                              const unsigned int n1,
+                                              const unsigned int n2);
 
         void
         calculate_diffusion_flux_jacobian_primitive_vars (const unsigned int flux_dim,

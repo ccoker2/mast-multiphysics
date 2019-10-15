@@ -1163,8 +1163,122 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
         }
     }
     mat = mat*dprim_dcons;
+
 }
 
+void
+MAST::FluidElemBase::
+check_element_diffusion_flux_jacobian(const unsigned int flux_dim,
+                                      const MAST::PrimitiveSolution& sol,
+                                      const RealVectorX& elem_sol,
+                                      const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                                      const MAST::FEMOperatorMatrix& Bmat,
+                                      const RealMatrixX& dprim_dcons,
+                                      const unsigned int n1,
+                                      const unsigned int n2) {
+
+    Real
+    delta = 1e-3;
+
+    RealVectorX
+    sol_hi = elem_sol,
+    sol_lo = elem_sol;
+
+    RealVectorX
+    f_hi = RealVectorX::Zero(n1),
+    f_lo = RealVectorX::Zero(n1);
+
+    RealMatrixX
+    stress_tensor_hi = RealMatrixX::Zero(dim, dim),
+    stress_tensor_lo = RealMatrixX::Zero(dim, dim);
+
+    RealVectorX
+    temp_gradient_hi = RealVectorX::Zero(dim),
+    temp_gradient_lo = RealVectorX::Zero(dim);
+
+    RealMatrixX
+    jac_numerical = RealMatrixX::Zero(n1,n1),
+    jac_numerical_discrete = RealMatrixX::Zero(n1,n2),
+    jac_analytical_discrete = RealMatrixX::Zero(n1,n2);
+
+    for (unsigned int i=0; i<n1; i++) {
+        sol_hi = elem_sol;
+        sol_lo = elem_sol;
+
+        sol_hi(i) += delta;
+        sol_lo(i) -= delta;
+
+        calculate_diffusion_tensors(sol_hi, dB_mat, dprim_dcons, sol, stress_tensor_hi, temp_gradient_hi);
+        calculate_diffusion_tensors(sol_lo, dB_mat, dprim_dcons, sol, stress_tensor_lo, temp_gradient_lo);
+
+        calculate_diffusion_flux(flux_dim, sol, stress_tensor_hi, temp_gradient_hi, f_hi);
+        calculate_diffusion_flux(flux_dim, sol, stress_tensor_lo, temp_gradient_lo, f_lo);
+
+        jac_numerical.col(i) = (f_hi - f_lo)/2/delta;
+    }
+    Bmat.left_multiply(jac_numerical_discrete, jac_numerical);
+
+    RealMatrixX
+            mat1_n1n1 = RealMatrixX::Zero(n1,n1),
+            mat3_n1n2 = RealMatrixX::Zero(n1,n2),
+            mat4_n1n2 = RealMatrixX::Zero(n1,n2);
+
+    // w.r.t. gradients of conservative variables
+    for (unsigned int j_dim=0; j_dim<dim; j_dim++) {
+
+        // w.r.t. conservative variable gradient
+        calculate_diffusion_flux_jacobian(flux_dim,
+                                          j_dim,
+                                          sol,
+                                          mat1_n1n1);
+
+        dB_mat[j_dim].left_multiply(mat3_n1n2, mat1_n1n1);                     // Kij dB_j
+        mat4_n1n2 += mat3_n1n2;
+    }
+
+    RealMatrixX
+    stress_tensor = RealMatrixX::Zero(dim, dim);
+
+    RealVectorX
+    temp_gradient = RealVectorX::Zero(dim);
+
+    calculate_diffusion_tensors(elem_sol, dB_mat, dprim_dcons, sol, stress_tensor, temp_gradient);
+
+    // w.r.t. conservative variables
+    calculate_diffusion_flux_jacobian_cons(flux_dim,
+                                           sol,
+                                           elem_sol,                          // local element solution
+                                           stress_tensor,
+                                           temp_gradient,
+                                           dB_mat,
+                                           mat1_n1n1);
+
+    Bmat.left_multiply(mat3_n1n2,mat1_n1n1);                              // Ki B
+
+    jac_analytical_discrete = mat3_n1n2 + mat4_n1n2;
+
+
+    // write the numerical and analytical jacobians to separate text files
+    std::ofstream aJac;
+    aJac.open("element_analytical_jacobian.txt");
+    for (unsigned int j=0; j<jac_analytical_discrete.cols(); j++) {
+        for (unsigned int i=0; i<jac_analytical_discrete.rows(); i++) {
+            aJac << jac_analytical_discrete(i,j) << ", ";
+        }
+        aJac << "\n";
+    }
+    aJac.close();
+
+    std::ofstream nJac;
+    nJac.open("element_numerical_jacobian.txt");
+    for (unsigned int j=0; j<jac_numerical_discrete.cols(); j++) {
+        for (unsigned int i=0; i<jac_numerical_discrete.rows(); i++) {
+            nJac << jac_numerical_discrete(i,j) << ", ";
+        }
+        nJac << "\n";
+    }
+    nJac.close();
+}
 
 void
 MAST::FluidElemBase::
