@@ -204,6 +204,28 @@ MAST::TransientAssemblyElemOperations
 //            << jac
 //            << std::endl << std::endl;
 
+
+    // write the numerical and analytical jacobians to separate text files
+    std::ofstream aJac;
+    aJac.open("analytical_jacobian.txt");
+    for (unsigned int j=0; j<vel.size(); j++) {
+        for (unsigned int i=0; i<vel.size(); i++) {
+                aJac << f_x_jac0(i,j) << ", ";
+        }
+        aJac << ", \n";
+    }
+    aJac.close();
+
+    std::ofstream nJac;
+    nJac.open("numerical_jacobian.txt");
+    for (unsigned int j=0; j<vel.size(); j++) {
+        for (unsigned int i=0; i<vel.size(); i++) {
+            nJac << jac(i,j) << ", ";
+        }
+        nJac << ", \n";
+    }
+    nJac.close();
+
     MAST::transient_compare_matrix(jac, f_x_jac0, 1.0e0);
     // set the original solution vector for the element
 

@@ -25,6 +25,9 @@
 #include "base/assembly_elem_operation.h"
 #include "base/mast_data_types.h"
 
+// I/O includes
+#include <fstream>
+
 namespace MAST {
     
     class TransientAssemblyElemOperations:
