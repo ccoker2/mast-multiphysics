@@ -283,7 +283,6 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
                                                           _sol,
                                                           dBmat,
                                                           Bmat,
-                                                          dprim_dcons,
                                                           n1,
                                                           n2);
 

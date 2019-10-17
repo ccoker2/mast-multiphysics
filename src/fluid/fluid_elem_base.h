@@ -222,15 +222,30 @@ namespace MAST {
                                                     const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
                                                     RealMatrixX& mat);
 
+        void calculate_dfv_dvp (const unsigned int flux_dim,
+                           const MAST::PrimitiveSolution& sol,
+                           const RealVectorX& elem_sol,
+                           const RealMatrixX& stress_tensor,
+                           const RealMatrixX& temp_gradient,
+                           const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                           RealMatrixX& mat);
+
         void
         check_element_diffusion_flux_jacobian(const unsigned int flux_dim,
                                               const MAST::PrimitiveSolution& sol,
                                               const RealVectorX& elem_sol,
                                               const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
                                               const MAST::FEMOperatorMatrix& Bmat,
-                                              const RealMatrixX& dprim_dcons,
                                               const unsigned int n1,
                                               const unsigned int n2);
+
+        void
+        get_conservative_vars(const MAST::PrimitiveSolution& sol,
+                              RealVectorX& conservative_vars);
+
+        void
+        initialize_prim_solution(const RealVectorX& primitive_vars,
+                                 MAST::PrimitiveSolution& sol);
 
         void
         calculate_diffusion_flux_jacobian_primitive_vars (const unsigned int flux_dim,
