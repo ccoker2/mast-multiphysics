@@ -278,13 +278,13 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
                     Bmat.left_multiply(mat3_n1n2,mat1_n1n1);                              // Ki B
                     dBmat[i_dim].right_multiply_transpose(mat4_n2n2,mat3_n1n2);           // dB_i^T Ki B
 
-                    check_element_diffusion_flux_jacobian(i_dim,
-                                                          primitive_sol,
-                                                          _sol,
-                                                          dBmat,
-                                                          Bmat,
-                                                          n1,
-                                                          n2);
+//                    check_element_diffusion_flux_jacobian(i_dim,
+//                                                          primitive_sol,
+//                                                          _sol,
+//                                                          dBmat,
+//                                                          Bmat,
+//                                                          n1,
+//                                                          n2);
 
                     jac += JxW[qp]*mat4_n2n2;
 
