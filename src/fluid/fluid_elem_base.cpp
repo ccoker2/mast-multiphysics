@@ -1055,7 +1055,8 @@ calculate_dfv_dvp (const unsigned int flux_dim,
             gma = flight_condition->gas_property.gamma;
 
     const Real
-    dmu_dT = -1.458*pow(10,-6)*pow(T,1.5)/pow((T+110.4),2) + 2.187*pow(10,-6)*pow(T,0.5)/(110.4+T);
+    dmu_dT = -1.458*pow(10,-6)*pow(T,1.5)/pow((T+110.4),2) + 2.187*pow(10,-6)*pow(T,0.5)/(110.4+T),
+    dlambda_dT = -2/3*dmu_dT;
 
 
     RealMatrixX
@@ -1122,21 +1123,18 @@ calculate_dfv_dvp (const unsigned int flux_dim,
         case 0: {
             switch (dim) {
                 case 3: {
-                    mat(1,3)  = 2*u3*lambda;
-                    mat(n1-1, 3)        = 2*u1*u3*lambda + mu*(du1_dz + du3_dx);
+                    mat(3,n1-1) = dmu_dT*(du1_dz+du3_dx);
+                    mat(n1-1,3) = mu*(du1_dz+du3_dx);
                 }
                 case 2: {
-                    mat(1,2)  = 2*u2*lambda;
-                    mat(n1-1, 2)        = 2*u1*u2*lambda + mu*(du1_dy + du2_dx);
+                    mat(2,n1-1) = dmu_dT*(du1_dy+du2_dx);
+                    mat(n1-1,2) = mu*(du1_dy+du2_dx);
                 }
 
                 case 1: {
-                    mat(1,0)       = -R*T;
-                    mat(1,1)       = 2*u1*lambda;
-                    mat(1,n1-1 )   = -R*rho;
-                    mat(n1-1,0)    = -R*T*u1;
-                    mat(n1-1,1 )   = 3*u1*u1*lambda + u2*u2*lambda + u3*u3*lambda - R*T*rho + 2*mu*du1_dx;
-                    mat(n1-1,n1-1) = -R*u1*rho;
+                    mat(1,n1-1) = dmu_dT*(2*du1_dx + dlambda_dT*(du3_dz+du2_dy+du1_dx));
+                    mat(n1-1,1) = 2*mu*du1_dx+lambda*(du3_dz+du2_dy+du1_dx);
+                    mat(n1-1,n1-1) = dmu_dT*(u1*(2*du1_dx+dlambda_dT*(du3_dz+du2_dy+du1_dx))+u2*(du1_dy+du2_dx)+u3*(du1_dz+du3_dx));
                     break;
                 }
             }
@@ -1145,20 +1143,17 @@ calculate_dfv_dvp (const unsigned int flux_dim,
         case 1: {
             switch (dim) {
                 case 3: {
-                    mat(2, 3) = 2*u3*lambda;
-                    mat(n1-1, 3) = 2*u2*u3*lambda + mu*(du2_dz + du3_dy);
+                    mat(3,n1-1) = dmu_dT*(du2_dz+du3_dy);
+                    mat(n1-1,3) = mu*(du2_dz+du3_dy);
                 }
                 case 2: {
-                    mat(2, 0) = -R*T;
-                    mat(2, 1) = 2*u1*lambda;
-                    mat(2, 2) = 2*u2*lambda;
-                    mat(2, n1-1) = -R*rho;
-                    mat(n1-1, 2) = u1*u1*lambda + 3*u2*u2*lambda + u3*u3*lambda - R*T*rho + 2*mu*du2_dy;
+                    mat(2,n1-1) = dmu_dT*(2*du2_dy+dlambda_dT*(du3_dz+du2_dy+du1_dx));
+                    mat(n1-1,2) = 2*mu*du2_dy+lambda*(du3_dz+du2_dy+du1_dx);
                 }
                 case 1: {
-                    mat(n1-1, 0) = -R*T*u2;
-                    mat(n1-1, 1) = 2*u1*u2*lambda + mu*(du1_dy + du2_dx);
-                    mat(n1-1, n1-1) = -R*u2*rho;
+                    mat(1,n1-1) = dmu_dT*(du1_dy+du2_dx);
+                    mat(n1-1,1) = mu*(du1_dy+du2_dx);
+                    mat(n1-1,n1-1) = dmu_dT*(u3*(du2_dz+du3_dy)+u2*(2*du2_dy+dlambda_dT*(du3_dz+du2_dy+du1_dx))+u2*(du1_dy+du2_dx));
                     break;
                 }
             }
@@ -1167,20 +1162,17 @@ calculate_dfv_dvp (const unsigned int flux_dim,
         case 2: {
             switch (dim) {
                 case 3: {
-                    mat(3, 0) = -R*T;
-                    mat(3, 1) = 2*u1*lambda;
-                    mat(3, 2) = 2*u2*lambda;
-                    mat(3, 3) = 2*u3*lambda;
-                    mat(3, n1-1) = -R*rho;
-                    mat(n1-1, 3) = u1*u1*lambda + u2*u2*lambda + 3*u3*u3*lambda - R*T*rho + 2*mu*du3_dz;
+                    mat(3,n1-1) = dmu_dT*((2+dlambda_dT)*du3_dz+dlambda_dT*(du2_dy+du1_dx));
+                    mat(n1-1,3) = 2*mu*du3_dz+lambda*(du3_dz+du2_dy+du1_dx);
                 }
                 case 2: {
-                    mat(n1-1, 2) = 2*u2*u3*lambda + mu*(du2_dz + du3_dy);
+                    mat(2,n1-1) = dmu_dT*(du2_dz+du3_dy);
+                    mat(n1-1,2) = mu*(du2_dz+du3_dy);
                 }
                 case 1: {
-                    mat(n1-1, 0) = -R*T*u3;
-                    mat(n1-1, 1) = 2*u1*u3*lambda + mu*(du1_dz + du3_dx);
-                    mat(n1-1,n1-1) = -R*u3*rho;
+                    mat(1,n1-1) = dmu_dT*(du1_dz+du3_dx);
+                    mat(n1-1,1) = mu*(du1_dz+du3_dx);
+                    mat(n1-1,n1-1) = dmu_dT*(u2*(du2_dz+du3_dy)+u3*((2+dlambda_dT)*du3_dz+dlambda_dT*(du2_dy+du1_dx))+u1*(du1_dz+du3_dx));
                     break;
                 }
             }
@@ -1200,16 +1192,16 @@ check_element_diffusion_flux_jacobian(const unsigned int flux_dim,
                                       const unsigned int n2) {
 
     Real
-    frac = 0.1;
+    frac = 0.01;
 
     Real
-    rho = flight_condition->gas_property.rho*10,
+    rho = flight_condition->gas_property.rho,
     cv = flight_condition->gas_property.cv,
     cp = flight_condition->gas_property.cp,
     T = flight_condition->gas_property.T;
 
     RealVectorX
-    velocity_test = RealVectorX::Random(dim)*1000;
+    velocity_test = RealVectorX::Random(dim)*10;
 
     // unperturbed primitive solution
     RealVectorX
