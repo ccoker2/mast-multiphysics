@@ -260,10 +260,9 @@ calculate_diffusion_tensors(const RealVectorX& elem_sol,
                             RealVectorX& temp_gradient) {
     
     const unsigned int n1 = dim+2;
-    
     RealVectorX
-    dprim_dx               = RealVectorX::Zero(n1),
-    dcons_dx               = RealVectorX::Zero(n1);
+    dprim_dx = RealVectorX::Zero(n1),
+    dcons_dx = RealVectorX::Zero(n1);
     
     stress_tensor.setZero();
     temp_gradient.setZero();
@@ -1193,15 +1192,23 @@ check_element_diffusion_flux_jacobian(const unsigned int flux_dim,
 
     Real
     frac = 0.01;
+//    const MAST::GeomElem elem;
+//
+//    std::unique_ptr<MAST::FEBase> fe(elem.init_fe(true, if_viscous()));
+//
+//    const unsigned int qp = 0;
+//    std::vector<MAST::FEMOperatorMatrix>              dBmat(dim);
+//    _initialize_fem_gradient_operator(qp, dim, *fe, dBmat);
 
     Real
     rho = flight_condition->gas_property.rho,
     cv = flight_condition->gas_property.cv,
     cp = flight_condition->gas_property.cp,
-    T = flight_condition->gas_property.T;
+//    T = flight_condition->gas_property.T;
+    T = 100;
 
     RealVectorX
-    velocity_test = RealVectorX::Random(dim)*10;
+    velocity_test = RealVectorX::Random(dim)*1000;
 
     // unperturbed primitive solution
     RealVectorX
@@ -1210,18 +1217,20 @@ check_element_diffusion_flux_jacobian(const unsigned int flux_dim,
     primitive_vars_test.block(1,0,dim,1) = velocity_test;
     primitive_vars_test(n1-1) = T;
 
+    // declare and initialize the unperturbed primitive solution
+    MAST::PrimitiveSolution sol_test;
+    initialize_prim_solution(primitive_vars_test, sol_test);
+
+    // declare the perturbed primitive solutions
     MAST::PrimitiveSolution
-    sol_test,
     sol_hi,
     sol_lo;
 
-
+    // declare the perturbed primitive variables
     RealVectorX
     primitive_vars_hi,
     primitive_vars_lo;
 
-    // initialize the unperturbed primitive solution
-    initialize_prim_solution(primitive_vars_test, sol_test);
 
     // get the corresponding conservative variables
     RealVectorX
@@ -1246,9 +1255,8 @@ check_element_diffusion_flux_jacobian(const unsigned int flux_dim,
     dcons_dprim = RealMatrixX::Zero(n1,n1);
     calculate_conservative_variable_jacobian(sol_test, dcons_dprim, dprim_dcons);
 
-    // perturb the primitive element solution, do not perturb the stress tensor and temp gradient
+    // calculate diffusion tensors for unperturbed solution
     calculate_diffusion_tensors(elem_sol_test, dB_mat, dprim_dcons, sol_test, stress_tensor, temp_gradient);
-
 
     // declare and initialize the numerical viscous flux jacobian w.r.t. primitive variables
     RealMatrixX
@@ -1281,19 +1289,49 @@ check_element_diffusion_flux_jacobian(const unsigned int flux_dim,
         f_lo = RealVectorX::Zero(n1);
 
         // calculate perturbed diffusion fluxes
-        calculate_diffusion_flux(flux_dim, sol_hi, stress_tensor, temp_gradient, f_hi);
-        calculate_diffusion_flux(flux_dim, sol_lo, stress_tensor, temp_gradient, f_lo);
 
+        if (i == n1-1) // perturbed temperature affects the viscosity
+        {
+            RealVectorX
+            conservative_vars_hi = RealVectorX::Zero(n1),
+            conservative_vars_lo = RealVectorX::Zero(n1),
+            temp_gradient_hi = RealVectorX::Zero(dim),
+            temp_gradient_lo = RealVectorX::Zero(dim);
+
+            RealMatrixX
+            stress_tensor_hi = RealMatrixX::Zero(dim,dim),
+            stress_tensor_lo = RealMatrixX::Zero(dim,dim);
+
+            // get the conservative variables for the perturbed solutions
+            get_conservative_vars(sol_hi, conservative_vars_hi);
+            get_conservative_vars(sol_lo, conservative_vars_lo);
+
+            RealVectorX
+            elem_sol_test_hi = RealVectorX::Zero(n2);
+            Bmat.right_multiply_transpose(elem_sol_test_hi, conservative_vars_hi);
+            calculate_diffusion_tensors(elem_sol_test_hi, dB_mat, dprim_dcons, sol_hi, stress_tensor_hi, temp_gradient_hi);
+            calculate_diffusion_flux(flux_dim, sol_hi, stress_tensor_hi, temp_gradient, f_hi);
+
+            RealVectorX
+            elem_sol_test_lo = RealVectorX::Zero(n2);
+            Bmat.right_multiply_transpose(elem_sol_test_lo, conservative_vars_lo);
+            calculate_diffusion_tensors(elem_sol_test_lo, dB_mat, dprim_dcons, sol_lo, stress_tensor_lo, temp_gradient_lo);
+            calculate_diffusion_flux(flux_dim, sol_lo, stress_tensor_lo, temp_gradient, f_lo);
+
+        } else {
+            calculate_diffusion_flux(flux_dim, sol_hi, stress_tensor, temp_gradient, f_hi);
+            calculate_diffusion_flux(flux_dim, sol_lo, stress_tensor, temp_gradient, f_lo);
+        }
         dfv_dvp_numerical.col(i) = (f_hi - f_lo)/2/delta;
     }
 
 
-    // w.r.t. conservative variables
+    // calculate analytical jacobian w.r.t. conservative variables
     RealMatrixX
     dfv_dvp_analytical = RealMatrixX::Zero(n1,n1);
 
     calculate_dfv_dvp(flux_dim,
-                      sol,
+                      sol_test,
                       elem_sol_test,                          // local element solution
                       stress_tensor,
                       temp_gradient,
