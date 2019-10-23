@@ -1049,13 +1049,16 @@ calculate_dfv_dvp (const unsigned int flux_dim,
             lambda = sol.lambda,
             kth = sol.k_thermal,
             T = sol.T,
-            R = sol.cp - sol.cv,
-            cv = flight_condition->gas_property.cv,
-            gma = flight_condition->gas_property.gamma;
+            cv = sol.cv,
+            cp = sol.cp,
+            R = cp - cv,
+            Pr = sol.Pr,
+            gma = cp/cv;
 
     const Real
     dmu_dT = -1.458*pow(10,-6)*pow(T,1.5)/pow((T+110.4),2) + 2.187*pow(10,-6)*pow(T,0.5)/(110.4+T),
-    dlambda_dT = -2/3*dmu_dT;
+    dlambda_dT = -2/3*dmu_dT,
+    dkth_dT = cp/Pr*dmu_dT;
 
 
     RealMatrixX
@@ -1088,7 +1091,10 @@ calculate_dfv_dvp (const unsigned int flux_dim,
             du3_dy = 0,
             du1_dx = 0,
             du2_dx = 0,
-            du3_dx = 0;
+            du3_dx = 0,
+            dT_dx = 0,
+            dT_dy = 0,
+            dT_dz = 0;
 
     switch (dim) {
         case 3: {
@@ -1099,6 +1105,7 @@ calculate_dfv_dvp (const unsigned int flux_dim,
             du3_dz = dprim_dx[2](3);
             du3_dy = dprim_dx[1](3);
             du3_dx = dprim_dx[0](3);
+            dT_dz = temp_gradient(2);
         }
         case 2: {
             dprim_dx[1] = RealVectorX::Zero(n1);
@@ -1106,14 +1113,17 @@ calculate_dfv_dvp (const unsigned int flux_dim,
             du1_dy = dprim_dx[1](1);
             du2_dy = dprim_dx[1](2);
             du2_dx = dprim_dx[0](2);
+            dT_dy = temp_gradient(1);
         }
         case 1: {
             dprim_dx[0] = RealVectorX::Zero(n1);
             dprim_dx[0] = dprim_dcons*dcons_dx[0];
             du1_dx = dprim_dx[0](1);
+            dT_dx = temp_gradient(0);
             break;
         }
     }
+
 
 
 
@@ -1133,7 +1143,7 @@ calculate_dfv_dvp (const unsigned int flux_dim,
                 case 1: {
                     mat(1,n1-1) = dmu_dT*(2*du1_dx + dlambda_dT*(du3_dz+du2_dy+du1_dx));
                     mat(n1-1,1) = 2*mu*du1_dx+lambda*(du3_dz+du2_dy+du1_dx);
-                    mat(n1-1,n1-1) = dmu_dT*(u1*(2*du1_dx+dlambda_dT*(du3_dz+du2_dy+du1_dx))+u2*(du1_dy+du2_dx)+u3*(du1_dz+du3_dx));
+                    mat(n1-1,n1-1) = dkth_dT*dT_dx+u1*dmu_dT*(2*du1_dx+dlambda_dT*(du3_dz+du2_dy+du1_dx))+u2*dmu_dT*(du1_dy+du2_dx)+u3*dmu_dT*(du1_dz+du3_dx);
                     break;
                 }
             }
@@ -1152,7 +1162,7 @@ calculate_dfv_dvp (const unsigned int flux_dim,
                 case 1: {
                     mat(1,n1-1) = dmu_dT*(du1_dy+du2_dx);
                     mat(n1-1,1) = mu*(du1_dy+du2_dx);
-                    mat(n1-1,n1-1) = dmu_dT*(u3*(du2_dz+du3_dy)+u2*(2*du2_dy+dlambda_dT*(du3_dz+du2_dy+du1_dx))+u2*(du1_dy+du2_dx));
+                    mat(n1-1,n1-1) = dkth_dT*dT_dy+u3*dmu_dT*(du2_dz+du3_dy)+u2*dmu_dT*(2*du2_dy+dlambda_dT*(du3_dz+du2_dy+du1_dx))+u1*dmu_dT*(du1_dy+du2_dx);
                     break;
                 }
             }
@@ -1171,7 +1181,7 @@ calculate_dfv_dvp (const unsigned int flux_dim,
                 case 1: {
                     mat(1,n1-1) = dmu_dT*(du1_dz+du3_dx);
                     mat(n1-1,1) = mu*(du1_dz+du3_dx);
-                    mat(n1-1,n1-1) = dmu_dT*(u2*(du2_dz+du3_dy)+u3*((2+dlambda_dT)*du3_dz+dlambda_dT*(du2_dy+du1_dx))+u1*(du1_dz+du3_dx));
+                    mat(n1-1,n1-1) = dkth_dT*dT_dz+u2*dmu_dT*(du2_dz+du3_dy)+u3*dmu_dT*((2+dlambda_dT)*du3_dz+dlambda_dT*(du2_dy+du1_dx))+u1*dmu_dT*(du1_dz+du3_dx);
                     break;
                 }
             }
