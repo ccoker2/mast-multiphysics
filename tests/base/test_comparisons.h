@@ -22,6 +22,7 @@
 
 // C++ includes
 #include <iomanip>
+#include <iostream>
 
 // MAST includes
 #include "base/mast_data_types.h"
@@ -67,11 +68,11 @@ namespace MAST {
         bool pass = true;
         
         if (!MAST::compare(v0, v, tol)) {
-            BOOST_TEST_MESSAGE ("Failed comparison: "
+            std::cout <<"Failed comparison: "
                                 << "expected: " << v0<< "  , "
                                 << "computed: " << v << " : "
                                 << "diff: " << v0 - v << " , "
-                                << "tol: " << tol);
+                                << "tol: " << tol;
             pass = false;
         }
         
@@ -91,12 +92,12 @@ namespace MAST {
         bool pass = true;
         for (unsigned int i=0; i<v0_size; i++) {
             if (!MAST::compare(v0(i), v(i), tol)) {
-                BOOST_TEST_MESSAGE("Failed comparison at i = ("
+                std::cout << "Failed comparison at i = ("
                                    << i << ") : "
                                    << "expected: " << v0(i) << "  , "
                                    << "computed: " << v(i) << " : "
                                    << "diff: " << v0(i) - v(i) << " , "
-                                   << "tol: " << tol);
+                                   << "tol: " << tol;
                 pass = false;
             }
         }
@@ -123,20 +124,20 @@ namespace MAST {
             for (unsigned int j=0; j<m0_cols; j++)
                 if (!MAST::compare(m0(i,j), m(i,j), tol)) {
                     if (pass) {
-                        BOOST_TEST_MESSAGE("Failed comparison\n"
+                        std::cout << "Failed comparison\n"
                                            << std::setw(5) << "i"
                                            << std::setw(5) << "j"
                                            << std::setw(20) << "expected"
                                            << std::setw(20) << "computed"
                                            << std::setw(20) << "diff"
-                                           << std::setw(20) << "tol");
+                                           << std::setw(20) << "tol";
                     }
-                    BOOST_TEST_MESSAGE(std::setw(5) << i
+                    std::cout << std::setw(5) << i
                                        << std::setw(5) << j
                                        << std::setw(20) << m0(i,j)
                                        << std::setw(20) << m(i,j)
                                        << std::setw(20) << m0(i,j) - m(i,j)
-                                       << std::setw(20) << tol);
+                                       << std::setw(20) << tol;
                     pass = false;
                 }
         }

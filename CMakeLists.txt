@@ -50,7 +50,7 @@ find_package(Eigen3 REQUIRED)
 #       a CMake/Spack-based installation of Boost causes trouble. Some of the include 
 #       directories seem to be missing in this case. We disable the search for a 
 #       Boost CMake configuration in the FindBoost module for now.
-set(Boost_NO_BOOST_CMAKE ON) 
+set(Boost_NO_BOOST_CMAKE ON)
 find_package(Boost COMPONENTS iostreams system filesystem unit_test_framework REQUIRED)
 message("-- Found Boost include: ${Boost_INCLUDE_DIRS}") # To ensure the found Boost is what user expected
 message("-- Found Boost libs:    ${Boost_LIBRARY_DIRS}") # To ensure the found Boost is what user expected
