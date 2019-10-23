@@ -400,7 +400,7 @@ struct BuildFluidElem {
 
 
         // calculate diffusion flux jacobian w.r.t. primitive variables
-        const unsigned int flux_dim = 1;
+        const unsigned int flux_dim = 0;
         RealMatrixX dfv_dvp_analytical = RealMatrixX::Zero(n1,n1);
         _fluid_elem->calculate_dfv_dvp(flux_dim, sol, elem_sol, stress_tensor, temp_gradient, dB_mat, dfv_dvp_analytical);
 
@@ -411,7 +411,7 @@ struct BuildFluidElem {
 
 
         // perturb each primitive variable for fd calculation
-        Real frac = 0.1;
+        Real frac = 0.01;
 
         // declare and get the primitive vars
         RealVectorX primitive_vars = RealVectorX::Zero(n1);
@@ -423,9 +423,6 @@ struct BuildFluidElem {
         // declare and calculate the numerical diffusion flux jacobian
         RealMatrixX dfv_dvp_numerical = RealMatrixX::Zero(n1,n1);
 
-
-
-
         for (unsigned int i = 0; i<n1; i++) {
             Real delta = frac*primitive_vars(i);
             RealVectorX primitive_vars_hi = primitive_vars;
@@ -434,10 +431,6 @@ struct BuildFluidElem {
 
             // initialize sol_hi via primitive variables
             _fluid_elem->initialize_prim_solution(primitive_vars_hi, sol_hi);
-
-//            // get the corresponding conservative variable
-//            RealVectorX conservative_vars_hi = RealVectorX::Zero(n1);
-//            _fluid_elem->get_conservative_vars(sol_hi, conservative_vars_hi);
 
             RealVectorX elem_sol_hi;
             init_solution_for_elem(sol_hi, elem_sol_hi);
