@@ -51,8 +51,16 @@ namespace MAST {
                                      const MAST::FlightCondition& f);
         
         virtual ~ConservativeFluidElementBase();
-        
-        
+
+        /*!
+         *
+         *   getter of interpolation and gradient operators
+         */
+        bool
+        get_operators(const unsigned int qp,
+                      MAST::FEMOperatorMatrix& Bmat,
+                      std::vector<MAST::FEMOperatorMatrix>& dB_mat);
+
         /*!
          *   internal force contribution to system residual
          */

@@ -49,7 +49,15 @@ MAST::ConservativeFluidElementBase::~ConservativeFluidElementBase() {
     
 }
 
-
+bool
+MAST::ConservativeFluidElementBase::get_operators(const unsigned int qp,
+                                               MAST::FEMOperatorMatrix& Bmat,
+                                               std::vector<MAST::FEMOperatorMatrix>& dB_mat) {
+    std::unique_ptr<MAST::FEBase> fe(_elem.init_fe(true, if_viscous()));
+    _initialize_fem_interpolation_operator(qp, dim, *fe, Bmat);
+    _initialize_fem_gradient_operator(qp, dim, *fe, dB_mat);
+    return 0;
+}
 
 
 bool
