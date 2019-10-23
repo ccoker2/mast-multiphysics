@@ -1200,17 +1200,18 @@ check_element_diffusion_flux_jacobian(const unsigned int flux_dim,
 //    std::vector<MAST::FEMOperatorMatrix>              dBmat(dim);
 //    _initialize_fem_gradient_operator(qp, dim, *fe, dBmat);
 
+
     Real
     rho = flight_condition->gas_property.rho,
     cv = flight_condition->gas_property.cv,
     cp = flight_condition->gas_property.cp,
 //    T = flight_condition->gas_property.T;
-    T = 100;
+    T = 200;
 
     RealVectorX
-    velocity_test = RealVectorX::Random(dim)*1000;
+    velocity_test = RealVectorX::Random(dim)*10;
 
-    // unperturbed primitive solution
+    // unperturbed primitive vars
     RealVectorX
     primitive_vars_test = RealVectorX::Zero(n1);
     primitive_vars_test(0) = rho;
