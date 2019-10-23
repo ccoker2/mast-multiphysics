@@ -220,6 +220,32 @@ struct BuildFluidElem {
     }
 
 
+    void init_solution_for_elem(MAST::PrimitiveSolution sol, RealVectorX &s) {
+
+        libmesh_assert(_initialized);
+
+        unsigned int
+                n_shape = _sys->n_dofs() / (_dim + 2);
+
+        // random vector in [-1, 1] used to perturb the state vector
+        // to invoke gradients, leading to stresses and flux terms
+        RealVectorX
+                rand = RealVectorX::Random(n_shape);
+
+        s = RealVectorX::Zero(_sys->n_dofs());
+
+        for (unsigned int i = 0; i < n_shape; i++) {
+
+            s(i) = sol.rho * (1. + _delta * rand(i));
+            s(n_shape + i) = sol.rho*sol.u1 * (1. + _delta * rand(i));
+            s(2 * n_shape + i) = sol.rho*sol.u2 * (1. + _delta * rand(i));
+            if (_dim > 2)
+                s(3 * n_shape + i) = sol.rho*sol.u3 * (1. + _delta * rand(i));
+            s((_dim + 1) * n_shape + i) = sol.rho*sol.e_tot * (1. + _delta * rand(i));
+        }
+    }
+
+
     void init_primitive_sol(MAST::PrimitiveSolution &s) {
 
         libmesh_assert(_initialized);
@@ -335,13 +361,16 @@ struct BuildFluidElem {
 
 
         // perturbation for element solution (to create nonzero stresses)
-        _delta = 0.01;
+        _delta = 0.001;
 
 
         // initialize element solution
         RealVectorX elem_sol;
         init_solution_for_elem(elem_sol);
-
+        RealVectorX
+        elem_vel = elem_sol / 1.e-2;
+        _fluid_elem->set_solution(elem_sol);
+        _fluid_elem->set_velocity(elem_vel);
 
         // initialize unperturbed solution
         MAST::PrimitiveSolution sol;
@@ -371,7 +400,7 @@ struct BuildFluidElem {
 
 
         // calculate diffusion flux jacobian w.r.t. primitive variables
-        const unsigned int flux_dim = 0;
+        const unsigned int flux_dim = 1;
         RealMatrixX dfv_dvp_analytical = RealMatrixX::Zero(n1,n1);
         _fluid_elem->calculate_dfv_dvp(flux_dim, sol, elem_sol, stress_tensor, temp_gradient, dB_mat, dfv_dvp_analytical);
 
@@ -386,26 +415,39 @@ struct BuildFluidElem {
 
         // declare and get the primitive vars
         RealVectorX primitive_vars = RealVectorX::Zero(n1);
-        primitive_vars(0) = _flight_cond->rho();
-        primitive_vars(1) = _flight_cond->rho_u1()/_flight_cond->rho();
-        primitive_vars(2) = _flight_cond->rho_u2()/_flight_cond->rho();
-        primitive_vars(3) = _flight_cond->gas_property.T;
+        primitive_vars(0) = sol.rho;
+        primitive_vars(1) = sol.u1;
+        primitive_vars(2) = sol.u2;
+        primitive_vars(3) = sol.T;
 
         // declare and calculate the numerical diffusion flux jacobian
         RealMatrixX dfv_dvp_numerical = RealMatrixX::Zero(n1,n1);
+
+
 
 
         for (unsigned int i = 0; i<n1; i++) {
             Real delta = frac*primitive_vars(i);
             RealVectorX primitive_vars_hi = primitive_vars;
             primitive_vars_hi(i) += delta;
-
             MAST::PrimitiveSolution sol_hi;
-            _fluid_elem->set_solution(primitive_vars_hi);
+
+            // initialize sol_hi via primitive variables
             _fluid_elem->initialize_prim_solution(primitive_vars_hi, sol_hi);
 
+//            // get the corresponding conservative variable
+//            RealVectorX conservative_vars_hi = RealVectorX::Zero(n1);
+//            _fluid_elem->get_conservative_vars(sol_hi, conservative_vars_hi);
+
             RealVectorX elem_sol_hi;
-            init_solution_for_elem(elem_sol_hi);
+            init_solution_for_elem(sol_hi, elem_sol_hi);
+
+            // set the conservative solution
+            _fluid_elem->set_solution(elem_sol_hi);
+
+            RealVectorX elem_vel_hi;
+            elem_vel_hi = elem_sol_hi / 1.e-2;
+            _fluid_elem->set_velocity(elem_vel_hi);
 
             // declare and initialize gradient operator for perturbed solution
             MAST::FEMOperatorMatrix Bmat_hi;
@@ -421,12 +463,13 @@ struct BuildFluidElem {
             // declare and calculate diffusion tensors for perturbed solution
             RealMatrixX stress_tensor_hi = RealMatrixX::Zero(_dim, _dim);
             RealVectorX temp_gradient_hi = RealVectorX::Zero(_dim);
-            _fluid_elem->calculate_diffusion_tensors(elem_sol_hi, dB_mat_hi, dprim_dcons_hi, sol_hi, stress_tensor_hi, temp_gradient_hi);
+            // note: elem_sol is used so that only sol_hi is perturbed; this affects the viscosity without perturbing the
+            _fluid_elem->calculate_diffusion_tensors(elem_sol, dB_mat, dprim_dcons, sol_hi, stress_tensor_hi, temp_gradient_hi);
 
             // declare and calculate diffusion flux for perturbed solution
             RealVectorX flux_hi = RealVectorX::Zero(n1);
             if (i == n1-1)
-                _fluid_elem->calculate_diffusion_flux(flux_dim, sol_hi, stress_tensor_hi, temp_gradient, flux_hi);
+                _fluid_elem->calculate_diffusion_flux(flux_dim, sol_hi, stress_tensor_hi, temp_gradient_hi, flux_hi);
             else
                 _fluid_elem->calculate_diffusion_flux(flux_dim, sol_hi, stress_tensor, temp_gradient, flux_hi);
 
@@ -434,48 +477,6 @@ struct BuildFluidElem {
         }
         return 0;
     }
-
-//    void
-//    initialize_fem_interpolation_operator(const unsigned int qp,
-//                                          const unsigned int dim,
-//                                          const MAST::FEBase& fe,
-//                                          MAST::FEMOperatorMatrix& Bmat) {
-//
-//        const std::vector<std::vector<Real> >& phi_fe = fe.get_phi();
-//
-//        const unsigned int n_phi = (unsigned int)phi_fe.size();
-//
-//        RealVectorX phi = RealVectorX::Zero(n_phi);
-//
-//        // shape function values
-//        // N
-//        for ( unsigned int i_nd=0; i_nd<n_phi; i_nd++ )
-//            phi(i_nd) = phi_fe[i_nd][qp];
-//
-//        Bmat.reinit(dim+2, phi);
-//    }
-
-//    void
-//    initialize_fem_gradient_operator(const unsigned int qp,
-//                                     const unsigned int dim,
-//                                     const MAST::FEBase& fe,
-//                                     std::vector<MAST::FEMOperatorMatrix>& dBmat) {
-//
-//        libmesh_assert(dBmat.size() == dim);
-//
-//        const std::vector<std::vector<libMesh::RealVectorValue> >& dphi = fe.get_dphi();
-//
-//        const unsigned int n_phi = (unsigned int)dphi.size();
-//        RealVectorX phi = RealVectorX::Zero(n_phi);
-//
-//        // now set the shape function values
-//        for (unsigned int i_dim=0; i_dim<dim; i_dim++) {
-//
-//            for ( unsigned int i_nd=0; i_nd<n_phi; i_nd++ )
-//                phi(i_nd) = dphi[i_nd][qp](i_dim);
-//            dBmat[i_dim].reinit(dim+2, phi); //  dU/dx_i
-//        }
-//    }
 };
 
 #endif // __mast_fluid_elem_initialization_h__
