@@ -1,0 +1,140 @@
+Determining if the function sgemm_ exists failed with the following output:
+Change Dir: /scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/bin/gmake cmTC_292b8/fast 
+/bin/gmake -f CMakeFiles/cmTC_292b8.dir/build.make CMakeFiles/cmTC_292b8.dir/build
+gmake[1]: Entering directory `/scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_292b8.dir/CheckFunctionExists.c.o
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/gcc-8.3.0-wwpinbruamhvwaqdjijnfou7xkmb5knx/bin/gcc   -DCHECK_FUNCTION_EXISTS=sgemm_   -o CMakeFiles/cmTC_292b8.dir/CheckFunctionExists.c.o   -c /cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-8.3.0/cmake-3.14.4-6k35gog3mjjh6e6nwzne743iwdorcupl/share/cmake-3.14/Modules/CheckFunctionExists.c
+Linking C executable cmTC_292b8
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-8.3.0/cmake-3.14.4-6k35gog3mjjh6e6nwzne743iwdorcupl/bin/cmake -E cmake_link_script CMakeFiles/cmTC_292b8.dir/link.txt --verbose=1
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/gcc-8.3.0-wwpinbruamhvwaqdjijnfou7xkmb5knx/bin/gcc  -DCHECK_FUNCTION_EXISTS=sgemm_    -rdynamic CMakeFiles/cmTC_292b8.dir/CheckFunctionExists.c.o  -o cmTC_292b8 
+CMakeFiles/cmTC_292b8.dir/CheckFunctionExists.c.o: In function `main':
+CheckFunctionExists.c:(.text+0x10): undefined reference to `sgemm_'
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [cmTC_292b8] Error 1
+gmake[1]: Leaving directory `/scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp'
+gmake: *** [cmTC_292b8/fast] Error 2
+
+
+Determining if the pthread_create exist failed with the following output:
+Change Dir: /scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/bin/gmake cmTC_db9e4/fast 
+/bin/gmake -f CMakeFiles/cmTC_db9e4.dir/build.make CMakeFiles/cmTC_db9e4.dir/build
+gmake[1]: Entering directory `/scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_db9e4.dir/CheckSymbolExists.c.o
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/gcc-8.3.0-wwpinbruamhvwaqdjijnfou7xkmb5knx/bin/gcc    -o CMakeFiles/cmTC_db9e4.dir/CheckSymbolExists.c.o   -c /scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_db9e4
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-8.3.0/cmake-3.14.4-6k35gog3mjjh6e6nwzne743iwdorcupl/bin/cmake -E cmake_link_script CMakeFiles/cmTC_db9e4.dir/link.txt --verbose=1
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/gcc-8.3.0-wwpinbruamhvwaqdjijnfou7xkmb5knx/bin/gcc      -rdynamic CMakeFiles/cmTC_db9e4.dir/CheckSymbolExists.c.o  -o cmTC_db9e4 
+CMakeFiles/cmTC_db9e4.dir/CheckSymbolExists.c.o: In function `main':
+CheckSymbolExists.c:(.text+0x16): undefined reference to `pthread_create'
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [cmTC_db9e4] Error 1
+gmake[1]: Leaving directory `/scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp'
+gmake: *** [cmTC_db9e4/fast] Error 2
+
+File /scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <pthread.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef pthread_create
+  return ((int*)(&pthread_create))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/bin/gmake cmTC_c54da/fast 
+/bin/gmake -f CMakeFiles/cmTC_c54da.dir/build.make CMakeFiles/cmTC_c54da.dir/build
+gmake[1]: Entering directory `/scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_c54da.dir/CheckFunctionExists.c.o
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/gcc-8.3.0-wwpinbruamhvwaqdjijnfou7xkmb5knx/bin/gcc   -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_c54da.dir/CheckFunctionExists.c.o   -c /cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-8.3.0/cmake-3.14.4-6k35gog3mjjh6e6nwzne743iwdorcupl/share/cmake-3.14/Modules/CheckFunctionExists.c
+Linking C executable cmTC_c54da
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-8.3.0/cmake-3.14.4-6k35gog3mjjh6e6nwzne743iwdorcupl/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c54da.dir/link.txt --verbose=1
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/gcc-8.3.0-wwpinbruamhvwaqdjijnfou7xkmb5knx/bin/gcc  -DCHECK_FUNCTION_EXISTS=pthread_create    -rdynamic CMakeFiles/cmTC_c54da.dir/CheckFunctionExists.c.o  -o cmTC_c54da -lpthreads 
+/bin/ld: cannot find -lpthreads
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [cmTC_c54da] Error 1
+gmake[1]: Leaving directory `/scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp'
+gmake: *** [cmTC_c54da/fast] Error 2
+
+
+Determining if the function sgemm_ exists failed with the following output:
+Change Dir: /scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/bin/gmake cmTC_f06e5/fast 
+/bin/gmake -f CMakeFiles/cmTC_f06e5.dir/build.make CMakeFiles/cmTC_f06e5.dir/build
+gmake[1]: Entering directory `/scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_f06e5.dir/CheckFunctionExists.c.o
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/gcc-8.3.0-wwpinbruamhvwaqdjijnfou7xkmb5knx/bin/gcc   -DCHECK_FUNCTION_EXISTS=sgemm_   -o CMakeFiles/cmTC_f06e5.dir/CheckFunctionExists.c.o   -c /cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-8.3.0/cmake-3.14.4-6k35gog3mjjh6e6nwzne743iwdorcupl/share/cmake-3.14/Modules/CheckFunctionExists.c
+Linking C executable cmTC_f06e5
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-8.3.0/cmake-3.14.4-6k35gog3mjjh6e6nwzne743iwdorcupl/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f06e5.dir/link.txt --verbose=1
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/gcc-8.3.0-wwpinbruamhvwaqdjijnfou7xkmb5knx/bin/gcc  -DCHECK_FUNCTION_EXISTS=sgemm_    -rdynamic CMakeFiles/cmTC_f06e5.dir/CheckFunctionExists.c.o  -o cmTC_f06e5 
+CMakeFiles/cmTC_f06e5.dir/CheckFunctionExists.c.o: In function `main':
+CheckFunctionExists.c:(.text+0x10): undefined reference to `sgemm_'
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [cmTC_f06e5] Error 1
+gmake[1]: Leaving directory `/scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp'
+gmake: *** [cmTC_f06e5/fast] Error 2
+
+
+Determining if the pthread_create exist failed with the following output:
+Change Dir: /scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/bin/gmake cmTC_d1773/fast 
+/bin/gmake -f CMakeFiles/cmTC_d1773.dir/build.make CMakeFiles/cmTC_d1773.dir/build
+gmake[1]: Entering directory `/scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_d1773.dir/CheckSymbolExists.c.o
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/gcc-8.3.0-wwpinbruamhvwaqdjijnfou7xkmb5knx/bin/gcc    -o CMakeFiles/cmTC_d1773.dir/CheckSymbolExists.c.o   -c /scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_d1773
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-8.3.0/cmake-3.14.4-6k35gog3mjjh6e6nwzne743iwdorcupl/bin/cmake -E cmake_link_script CMakeFiles/cmTC_d1773.dir/link.txt --verbose=1
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/gcc-8.3.0-wwpinbruamhvwaqdjijnfou7xkmb5knx/bin/gcc      -rdynamic CMakeFiles/cmTC_d1773.dir/CheckSymbolExists.c.o  -o cmTC_d1773 
+CMakeFiles/cmTC_d1773.dir/CheckSymbolExists.c.o: In function `main':
+CheckSymbolExists.c:(.text+0x16): undefined reference to `pthread_create'
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [cmTC_d1773] Error 1
+gmake[1]: Leaving directory `/scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp'
+gmake: *** [cmTC_d1773/fast] Error 2
+
+File /scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <pthread.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef pthread_create
+  return ((int*)(&pthread_create))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/bin/gmake cmTC_3414c/fast 
+/bin/gmake -f CMakeFiles/cmTC_3414c.dir/build.make CMakeFiles/cmTC_3414c.dir/build
+gmake[1]: Entering directory `/scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_3414c.dir/CheckFunctionExists.c.o
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/gcc-8.3.0-wwpinbruamhvwaqdjijnfou7xkmb5knx/bin/gcc   -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_3414c.dir/CheckFunctionExists.c.o   -c /cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-8.3.0/cmake-3.14.4-6k35gog3mjjh6e6nwzne743iwdorcupl/share/cmake-3.14/Modules/CheckFunctionExists.c
+Linking C executable cmTC_3414c
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-8.3.0/cmake-3.14.4-6k35gog3mjjh6e6nwzne743iwdorcupl/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3414c.dir/link.txt --verbose=1
+/cavs/projects/brg_codes/codes/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/gcc-8.3.0-wwpinbruamhvwaqdjijnfou7xkmb5knx/bin/gcc  -DCHECK_FUNCTION_EXISTS=pthread_create    -rdynamic CMakeFiles/cmTC_3414c.dir/CheckFunctionExists.c.o  -o cmTC_3414c -lpthreads 
+/bin/ld: cannot find -lpthreads
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [cmTC_3414c] Error 1
+gmake[1]: Leaving directory `/scratch/coker/mast-multiphysics/CMakeFiles/CMakeTmp'
+gmake: *** [cmTC_3414c/fast] Error 2
+
+
