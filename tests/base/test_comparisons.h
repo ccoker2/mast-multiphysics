@@ -130,14 +130,14 @@ namespace MAST {
                                            << std::setw(20) << "expected"
                                            << std::setw(20) << "computed"
                                            << std::setw(20) << "diff"
-                                           << std::setw(20) << "tol";
+                                           << std::setw(20) << "tol" << std::endl;
                     }
                     std::cout << std::setw(5) << i
                                        << std::setw(5) << j
                                        << std::setw(20) << m0(i,j)
                                        << std::setw(20) << m(i,j)
                                        << std::setw(20) << m0(i,j) - m(i,j)
-                                       << std::setw(20) << tol;
+                                       << std::setw(20) << tol << std::endl;
                     pass = false;
                 }
         }
