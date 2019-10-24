@@ -1022,8 +1022,9 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
                                              dcons_dprim,
                                              dprim_dcons);
 
-    calculate_dfv_dvp(flux_dim, sol, elem_sol, stress_tensor, temp_gradient, dB_mat, mat);
-    mat *= dprim_dcons;
+    RealMatrixX mat1_n1n1 = RealMatrixX::Zero(n1,n1);
+    calculate_dfv_dvp(flux_dim, sol, elem_sol, stress_tensor, temp_gradient, dB_mat, mat1_n1n1);
+    mat = mat1_n1n1 * dprim_dcons;
 }
 
 void
