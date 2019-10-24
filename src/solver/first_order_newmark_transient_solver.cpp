@@ -229,7 +229,7 @@ elem_calculations(bool if_jac,
                                      f_x_jac);      // Jac of forcing vector wrt x
 
     //check the Jacobian
-    _assembly_ops->check_element_numerical_jacobian();
+//    _assembly_ops->check_element_numerical_jacobian();
 
     if (_if_highest_derivative_solution) {
         
