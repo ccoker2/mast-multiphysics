@@ -19,7 +19,7 @@
 libMesh::LibMeshInit     *_libmesh_init         = nullptr;
 const Real                _frac                 = 1.e-4;
 const Real                _delta                = 1.e-4;
-const Real                _tol                  = 1.e-5;
+const Real                _tol                  = 1e-8;
 
 
 int main(int argc, const char** argv) {
@@ -46,13 +46,14 @@ int main(int argc, const char** argv) {
     val.delta    = _delta;
     // a smaller tolerance is required for the internal resisudal since
     // an exact Jacobian is not computed for the stabilization terms
-    val.tol      = 1.e-2;
+//     val.tol      = 1.e-2;
+    val.tol      = _tol;
 
-    bool if_viscous = true;
 
 //    BuildFluidElem e;
 //    e.init(if_viscous);
 
+    bool if_viscous = true;
     val.e.init(if_viscous);
     val.e._delta = 0.1;
     val.e.check_jacobian(val);
