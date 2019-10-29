@@ -468,7 +468,7 @@ struct BuildFluidElem {
 
             dfv_dvp_numerical.col(i) = (flux_hi - flux)/delta;
         }
-        return 0;
+        return MAST::compare_matrix(dfv_dvp_numerical, dfv_dvp_analytical, 1e-2);
     }
 };
 
