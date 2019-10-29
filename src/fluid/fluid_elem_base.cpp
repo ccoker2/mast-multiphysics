@@ -1056,8 +1056,12 @@ calculate_dfv_dvp (const unsigned int flux_dim,
             Pr = sol.Pr,
             gma = cp/cv;
 
-    const Real
-    dmu_dT = -1.458*pow(10,-6)*pow(T,1.5)/pow((T+110.4),2) + 2.187*pow(10,-6)*pow(T,0.5)/(110.4+T),
+    Real
+    dmu_dT = 0;
+    if (mu!= 0)
+        dmu_dT = -1.458*pow(10,-6)*pow(T,1.5)/pow((T+110.4),2) + 2.187*pow(10,-6)*pow(T,0.5)/(110.4+T);
+
+    Real
     dlambda_dT = -2/3*dmu_dT,
     dkth_dT = cp/Pr*dmu_dT;
 
