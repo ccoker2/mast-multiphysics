@@ -77,6 +77,16 @@ MAST::ElementBase::set_solution(const RealVectorX &vec,
 }
 
 
+void
+MAST::ElementBase::get_solution(RealVectorX &vec,
+                                bool if_sens) {
+
+    if (!if_sens)
+        vec = _sol;
+    else
+        vec = _sol_sens;
+}
+
 
 void
 MAST::ElementBase::set_perturbed_solution(const RealVectorX &vec,

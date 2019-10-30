@@ -138,7 +138,13 @@ namespace MAST {
         virtual void set_solution(const RealVectorX& vec,
                                   bool if_sens = false);
 
-        
+        /*!
+         *   stores \p vec as solution for element level calculations,
+         *   or its sensitivity if \p if_sens is true.
+         */
+        virtual void get_solution(RealVectorX& vec,
+                                  bool if_sens = false);
+
         /*!
          *   This provides the perturbed solution (or its sensitivity if
          *   \p if_sens is true.) for linearized analysis.
