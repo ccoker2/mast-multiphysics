@@ -217,16 +217,12 @@ namespace MAST {
         void calculate_diffusion_flux_jacobian_cons(const unsigned int flux_dim,
                                                     const MAST::PrimitiveSolution& sol,
                                                     const RealVectorX& elem_sol,
-                                                    const RealMatrixX& stress_tensor,
-                                                    const RealMatrixX& temp_gradient,
                                                     const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
                                                     RealMatrixX& mat);
 
         void calculate_dfv_dvp (const unsigned int flux_dim,
                            const MAST::PrimitiveSolution& sol,
                            const RealVectorX& elem_sol,
-                           const RealMatrixX& stress_tensor,
-                           const RealMatrixX& temp_gradient,
                            const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
                            RealMatrixX& mat);
 
@@ -425,6 +421,8 @@ namespace MAST {
         
         bool calculate_barth_tau_matrix(const unsigned int qp,
                                         const MAST::FEBase& fe,
+                                        const RealVectorX elem_solution,
+                                        const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
                                         const MAST::PrimitiveSolution& sol,
                                         RealMatrixX& tau,
                                         std::vector<RealMatrixX >& tau_sens);

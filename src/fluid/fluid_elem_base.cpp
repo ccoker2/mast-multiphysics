@@ -1005,8 +1005,6 @@ MAST::FluidElemBase::
 calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
                                         const MAST::PrimitiveSolution& sol,
                                         const RealVectorX& elem_sol,
-                                        const RealMatrixX& stress_tensor,
-                                        const RealMatrixX& temp_gradient,
                                         const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
                                         RealMatrixX& mat) {
 
@@ -1023,7 +1021,7 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
                                              dprim_dcons);
 
     RealMatrixX mat1_n1n1 = RealMatrixX::Zero(n1,n1);
-    calculate_dfv_dvp(flux_dim, sol, elem_sol, stress_tensor, temp_gradient, dB_mat, mat1_n1n1);
+    calculate_dfv_dvp(flux_dim, sol, elem_sol, dB_mat, mat1_n1n1);
     mat = mat1_n1n1 * dprim_dcons;
 }
 
@@ -1032,8 +1030,6 @@ MAST::FluidElemBase::
 calculate_dfv_dvp (const unsigned int flux_dim,
                                         const MAST::PrimitiveSolution& sol,
                                         const RealVectorX& elem_sol,
-                                        const RealMatrixX& stress_tensor,
-                                        const RealMatrixX& temp_gradient,
                                         const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
                                         RealMatrixX& mat) {
     const unsigned int n1 = dim + 2;
@@ -1108,9 +1104,9 @@ calculate_dfv_dvp (const unsigned int flux_dim,
             du1_dz = dprim_dx[2](1);
             du2_dz = dprim_dx[2](2);
             du3_dz = dprim_dx[2](3);
+            dT_dz = dprim_dx[2](n1-1);
             du3_dy = dprim_dx[1](3);
             du3_dx = dprim_dx[0](3);
-            dT_dz = temp_gradient(2);
         }
         case 2: {
             dprim_dx[1] = RealVectorX::Zero(n1);
@@ -1118,13 +1114,13 @@ calculate_dfv_dvp (const unsigned int flux_dim,
             du1_dy = dprim_dx[1](1);
             du2_dy = dprim_dx[1](2);
             du2_dx = dprim_dx[0](2);
-            dT_dy = temp_gradient(1);
+            dT_dy = dprim_dx[1](n1-1);
         }
         case 1: {
             dprim_dx[0] = RealVectorX::Zero(n1);
             dprim_dx[0] = dprim_dcons*dcons_dx[0];
             du1_dx = dprim_dx[0](1);
-            dT_dx = temp_gradient(0);
+            dT_dx = dprim_dx[0](n1-1);
             break;
         }
     }
@@ -1349,8 +1345,6 @@ check_element_diffusion_flux_jacobian(const unsigned int flux_dim,
     calculate_dfv_dvp(flux_dim,
                       sol_test,
                       elem_sol_test,                          // local element solution
-                      stress_tensor,
-                      temp_gradient,
                       dB_mat,
                       dfv_dvp_analytical);
 
@@ -2349,12 +2343,14 @@ bool
 MAST::FluidElemBase::
 calculate_barth_tau_matrix (const unsigned int qp,
                             const MAST::FEBase& fe,
+                            const RealVectorX elem_solution,
+                            const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
                             const MAST::PrimitiveSolution& sol,
                             RealMatrixX& tau,
                             std::vector<RealMatrixX >& tau_sens) {
     
     const unsigned int n1 = 2 + dim;
-    
+
     libMesh::Point nvec;
     RealVectorX
     eig_val               = RealVectorX::Zero(n1);
@@ -2388,6 +2384,10 @@ calculate_barth_tau_matrix (const unsigned int qp,
         }
     }
 
+    const unsigned int n2 = n1*fe.n_shape_functions();
+    RealVectorX elem_sol = RealVectorX::Zero(n2);
+
+
     // add the viscous contribution
     if (if_viscous()) {
 
@@ -2417,6 +2417,7 @@ calculate_barth_tau_matrix (const unsigned int qp,
         x = tmp1.lu().solve(b);
         tau.col(i_var) = x;
     }
+//    tau_sens = -tau*tau;
     
     return false;
 }
@@ -2990,7 +2991,7 @@ calculate_differential_operator_matrix (const unsigned int qp,
     //if_diagonal_tau = this->calculate_aliabadi_tau_matrix
     //(qp, c, sol, tau, tau_sens);
     if_diagonal_tau = this->calculate_barth_tau_matrix
-    (qp, fe, sol, tau, tau_sens);
+    (qp, fe, elem_solution, dB_mat, sol, tau, tau_sens);
     
     // contribution of advection flux term
     for (unsigned int i=0; i<dim; i++)
@@ -3021,6 +3022,8 @@ calculate_differential_operator_matrix (const unsigned int qp,
                 LS_sens.col((n_phi*i_cvar)+i_phi) += phi[i_phi][qp] * vec4_n2;
         }
     }
+
+    // contribution of viscous flux term
     
     // scale the LS matrix with the correct factor
     if (if_diagonal_tau) {

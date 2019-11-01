@@ -83,8 +83,10 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
     mat5_n1n2       = RealMatrixX::Zero(   n1,    n2),
     mat6_n2n2       = RealMatrixX::Zero(   n2,    n2),
     mat4_n2n2       = RealMatrixX::Zero(   n2,    n2),
+    mat8_n1n2       = RealMatrixX::Zero(   n1,    n2),
     AiBi_adv        = RealMatrixX::Zero(   n1,    n2),
     A_sens          = RealMatrixX::Zero(   n1,    n2),
+    K_sens          = RealMatrixX::Zero(   n1,    n2),
     LS              = RealMatrixX::Zero(   n1,    n2),
     LS_sens         = RealMatrixX::Zero(   n2,    n2),
     stress          = RealMatrixX::Zero(  dim,   dim),
@@ -169,18 +171,18 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
             AiBi_adv += mat3_n1n2;
         }
         
-        // intrinsic time operator for this quadrature point
-        calculate_differential_operator_matrix(qp,
-                                               *fe,
-                                               _sol,
-                                               primitive_sol,
-                                               Bmat,
-                                               dBmat,
-                                               Ai_adv,
-                                               AiBi_adv,
-                                               Ai_sens,
-                                               LS,
-                                               LS_sens);
+      // intrinsic time operator for this quadrature point
+      calculate_differential_operator_matrix(qp,
+                                             *fe,
+                                             _sol,
+                                             primitive_sol,
+                                             Bmat,
+                                             dBmat,
+                                             Ai_adv,
+                                             AiBi_adv,
+                                             Ai_sens,
+                                             LS,
+                                             LS_sens);
         
 //        // discontinuity capturing operator for this quadrature point
 //        if (flight_condition->enable_shock_capturing)
@@ -222,16 +224,16 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
         // stabilization term
         f += JxW[qp] * LS.transpose() * (AiBi_adv * _sol);
         if (if_viscous()) {
-            
-            for (unsigned int i_dim=0; i_dim<dim; i_dim++)
-                for (unsigned int j_dim=0; j_dim<dim; j_dim++) {
-                    
-                    
+
+            for (unsigned int i_dim=0; i_dim<dim; i_dim++) {
+                for (unsigned int j_dim = 0; j_dim < dim; j_dim++) {
+
+
                     calculate_diffusion_flux_jacobian(i_dim,
                                                       j_dim,
                                                       primitive_sol,
                                                       mat1_n1n1);
-                    
+
                     d2Bmat[i_dim][j_dim].vector_mult(vec1_n1, _sol);
                     f -= JxW[qp] * LS.transpose() * (mat1_n1n1 * vec1_n1);
                 }
@@ -240,8 +242,6 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
                 calculate_diffusion_flux_jacobian_cons(i_dim,
                                                        primitive_sol,
                                                        _sol,                          // local element solution
-                                                       stress,
-                                                       temp_grad,
                                                        dBmat,
                                                        mat1_n1n1);
                 dBmat[i_dim].vector_mult(vec1_n1, _sol);
@@ -284,15 +284,12 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
                         dBmat[j_dim].left_multiply(mat3_n1n2, mat1_n1n1);                     // Kij dB_j
                         dBmat[i_dim].right_multiply_transpose(mat4_n2n2, mat3_n1n2);          // dB_i^T Kij dB_j
                         jac += JxW[qp]*mat4_n2n2;
-
                     }
 
                     // w.r.t. conservative variables
                     calculate_diffusion_flux_jacobian_cons(i_dim,
                                                            primitive_sol,
                                                            _sol,                          // local element solution
-                                                           stress,
-                                                           temp_grad,
                                                            dBmat,
                                                            mat1_n1n1);
                     Bmat.left_multiply(mat3_n1n2,mat1_n1n1);                              // Ki B
@@ -308,23 +305,32 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
             // stabilization term
             jac  += JxW[qp] * LS.transpose() * AiBi_adv;                          // A_i dB_i
             if (if_viscous()) {
-                
-                for (unsigned int i_dim=0; i_dim<dim; i_dim++)
-                    for (unsigned int j_dim=0; j_dim<dim; j_dim++) {
+
+                for (unsigned int i_dim = 0; i_dim < dim; i_dim++) {
+                    for (unsigned int j_dim = 0; j_dim < dim; j_dim++) {
 
 
+                        // w.r.t. conservative variable gradients
                         calculate_diffusion_flux_jacobian(i_dim,
                                                           j_dim,
                                                           primitive_sol,
                                                           mat1_n1n1);
-                        
+
                         d2Bmat[i_dim][j_dim].left_multiply(mat3_n1n2, mat1_n1n1);
                         jac -= JxW[qp] * LS.transpose() * mat3_n1n2;
+                        K_sens += mat3_n1n2;
                     }
+                    // w.r.t. conservative variables
+                    calculate_diffusion_flux_jacobian_cons(i_dim, primitive_sol, _sol, dBmat, mat1_n1n1);
+                    dBmat[i_dim].left_multiply(mat3_n1n2, mat1_n1n1);
+                    jac -= JxW[qp] * LS.transpose() * mat3_n1n2;
+                    K_sens += mat3_n1n2;
+                }
             }
 
             // linearization of the Jacobian terms
-            jac += JxW[qp] * LS.transpose() * A_sens; // LS^T tau d^2F^adv_i / dx dU  (Ai sensitivity)
+            // ? Bi^T Ai T (d2 fi/dxi dU - d2 fvi/dxi dU)
+            jac += JxW[qp] * LS.transpose() * (A_sens - K_sens); // LS^T tau d^2F^adv_i / dx dU  (Ai sensitivity)
                                           // linearization of the LS terms
             jac += JxW[qp] * LS_sens;
             
@@ -462,7 +468,7 @@ MAST::ConservativeFluidElementBase::velocity_residual (bool request_jacobian,
         f += JxW[qp] * vec3_n2;
         
         // next, evaluate the contribution from the stabilization term
-//        f += JxW[qp] * LS.transpose() * vec1_n1;
+        f += JxW[qp] * LS.transpose() * vec1_n1;
         
         if (request_jacobian) {
             
@@ -474,7 +480,7 @@ MAST::ConservativeFluidElementBase::velocity_residual (bool request_jacobian,
             // next, evaluate the contribution from the stabilization term
             mat4_n2n1   = LS.transpose();
             Bmat.left_multiply(mat3_n2n2, mat4_n2n1);     // LS^T B
-//            jac_xdot += JxW[qp]*mat3_n2n2;
+            jac_xdot += JxW[qp]*mat3_n2n2;
         }
     }
     

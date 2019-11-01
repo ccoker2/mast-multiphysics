@@ -280,6 +280,7 @@ struct BuildFluidElem {
 
         RealMatrixX
                 jac0 = RealMatrixX::Zero(n, n),
+                jac_dummy = RealMatrixX::Zero(n, n),
                 jac_fd = RealMatrixX::Zero(n, n);
 
         RealVectorX
@@ -334,14 +335,14 @@ struct BuildFluidElem {
             _fluid_elem->set_solution(x_low);
             _fluid_elem->set_velocity(v_low);
             f_low.setZero();
-            val.compute(false, f_low, jac0);
+            val.compute(false, f_low, jac_dummy);
 
 
             // get the new residual
             _fluid_elem->set_solution(x_hi);
             _fluid_elem->set_velocity(v_hi);
             f_hi.setZero();
-            val.compute(false, f_hi, jac0);
+            val.compute(false, f_hi, jac_dummy);
 
             // set the i^th column of the finite-differenced Jacobian
             jac_fd.col(i) = (f_hi - f_low) / 2. / delta;
@@ -402,7 +403,7 @@ struct BuildFluidElem {
         // calculate diffusion flux jacobian w.r.t. primitive variables
         const unsigned int flux_dim = 0;
         RealMatrixX dfv_dvp_analytical = RealMatrixX::Zero(n1,n1);
-        _fluid_elem->calculate_dfv_dvp(flux_dim, sol, elem_sol, stress_tensor, temp_gradient, dB_mat, dfv_dvp_analytical);
+        _fluid_elem->calculate_dfv_dvp(flux_dim, sol, elem_sol, dB_mat, dfv_dvp_analytical);
 
 
         RealVectorX flux = RealVectorX::Zero(n1);
