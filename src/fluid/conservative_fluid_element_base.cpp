@@ -85,6 +85,7 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
     mat4_n2n2       = RealMatrixX::Zero(   n2,    n2),
     mat8_n1n2       = RealMatrixX::Zero(   n1,    n2),
     AiBi_adv        = RealMatrixX::Zero(   n1,    n2),
+    KiBi_dif        = RealMatrixX::Zero(   n1,    n2),
     A_sens          = RealMatrixX::Zero(   n1,    n2),
     K_sens          = RealMatrixX::Zero(   n1,    n2),
     LS              = RealMatrixX::Zero(   n1,    n2),
@@ -105,18 +106,33 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
     Ai_adv  (dim);
 
     std::vector<RealMatrixX>
+    Ki_dif  (dim);
+
+    std::vector<std::vector<RealMatrixX> >
+    Kij_dif (dim);
+
+    std::vector<RealMatrixX>
     Ai_adv_cons  (dim);
+
+    std::vector<RealMatrixX>
+    Ki_dif_cons  (dim);
     
     std::vector<std::vector<RealMatrixX> >
     Ai_sens  (dim);
-    
+
+    std::vector<std::vector<RealMatrixX> >
+    Ki_sens  (dim);
     
     for (unsigned int i=0; i<dim; i++) {
         Ai_sens [i].resize(n1);
+        Ki_sens [i].resize(n1);
         Ai_adv  [i].setZero(n1, n1);
+        Ki_dif  [i].setZero(n1, n1);
         Ai_adv_cons[i].setZero(n1,n1);
+        Ki_dif_cons[i].setZero(n1,n1);
         for (unsigned int j=0; j<n1; j++)
             Ai_sens[i][j].setZero(n1, n1);
+            Ki_sens[i][j].setZero(n1, n1);
     }
     
     
@@ -161,14 +177,30 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
         }
         
         AiBi_adv.setZero();
+        KiBi_dif.setZero();
         for (unsigned int i_dim=0; i_dim<dim; i_dim++) {
             
             calculate_advection_flux_jacobian(i_dim, primitive_sol, Ai_adv[i_dim]);
             calculate_advection_flux_jacobian_sensitivity_for_conservative_variable
             (i_dim, primitive_sol, Ai_sens[i_dim]);
-            
+
             dBmat[i_dim].left_multiply(mat3_n1n2, Ai_adv[i_dim]);
             AiBi_adv += mat3_n1n2;
+
+ //           calculate_diffusion_flux_jacobian_cons(i_dim, primitive_sol, _sol, dBmat, Ki_dif[i_dim]);
+//            calculate_dKi_duj_du_dx(i_dim, primitive_sol, _sol, dBmat,);
+  //          (i_dim, primitive_sol, Ki_sens[i_dim]);
+
+   //         dBmat[i_dim].left_multiply(mat3_n1n2, Ki_dif[i_dim]);
+   //         KiBi_dif += mat3_n1n2;
+
+//            for (unsigned int j_dim = 0; j_dim<dim; j_dim++) {
+//                calculate_diffusion_flux_jacobian(i_dim, j_dim, primitive_sol, Kij_dif[i_dim][j_dim]);
+//                dBmat[j]
+//            }
+
+
+// TODO            calculate_diffusion_flux_jacobian(i_dim, j_dim, primitive_sol, Kij_dif[i_dim, j_dim]);
         }
         
       // intrinsic time operator for this quadrature point
