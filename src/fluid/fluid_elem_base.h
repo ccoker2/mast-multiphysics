@@ -264,15 +264,40 @@ namespace MAST {
         (const unsigned int calculate_dim,
          const MAST::PrimitiveSolution& sol,
          std::vector<RealMatrixX >& mat);
-        
-        
+
+
         void calculate_advection_flux_jacobian_sensitivity_for_primitive_variable
         (const unsigned int calculate_dim,
          const unsigned int primitive_var,
          const MAST::PrimitiveSolution& sol,
          RealMatrixX& mat);
-        
-        
+
+
+        void calculate_dKi_dxi
+                (const unsigned int calculate_dim,
+                 const MAST::PrimitiveSolution& sol,
+                 std::vector<RealMatrixX >& jac);
+
+
+        void calculate_dKi_dvp
+                (const unsigned int calculate_dim,
+                 const unsigned int i_pvar,
+                 const MAST::PrimitiveSolution sol,
+                 const RealVectorX elem_sol,
+                 const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                 RealMatrixX& mat);
+
+
+        void calculate_dKi_d_gradk_vpj
+                (const unsigned int calculate_dim,
+                 const unsigned int j_pvar,
+                 const unsigned int k_deriv,
+                 const MAST::PrimitiveSolution sol,
+                 const RealVectorX elem_sol,
+                 const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                 RealMatrixX& mat);
+
+
         void calculate_advection_left_eigenvector_and_inverse_for_normal
         (const MAST::PrimitiveSolution& sol,
          const libMesh::Point& normal,

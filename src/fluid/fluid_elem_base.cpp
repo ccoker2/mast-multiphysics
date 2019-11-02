@@ -1401,6 +1401,351 @@ calculate_advection_flux_jacobian_sensitivity_for_conservative_variable
     }
 }
 
+
+void
+MAST::FluidElemBase::
+calculate_dKi_dxi
+(const unsigned int calculate_dim,
+ const MAST::PrimitiveSolution& sol,
+ const RealVectorX elem_sol,
+ const std::vector<MAST::FEMOperatorMatrix>& dBmat,
+ std::vector<RealMatrixX >& jac) {
+    const unsigned int n1 = 2 + dim;
+
+    RealMatrixX
+    dprim_dcons     = RealMatrixX::Zero(n1, n1),
+    mat             = RealMatrixX::Zero(n1, n1),
+    mat1_n1n1       = RealMatrixX::Zero(n1, n1);
+
+    for (unsigned int i_cvar = 0; i_cvar<n1; i_cvar++)
+        jac[i_cvar].setZero();
+
+    this->calculate_conservative_variable_jacobian(sol, mat,  dprim_dcons);
+
+    // calculate based on chain rule of primary variables
+    for (unsigned int i_pvar = 0; i_pvar<n1; i_pvar++) // iterate over the primitive variables for chain rule
+    {
+        this->calculate_dKi_dvp(calculate_dim, i_pvar, sol, elem_sol, dBmat, mat);
+        for (unsigned int i_cvar=0; i_cvar<n1; i_cvar++)
+        {
+            if (fabs(dprim_dcons(i_pvar, i_cvar)) > 0.0)
+                jac[i_cvar] += dprim_dcons(i_pvar, i_cvar) * mat;
+
+        }
+
+        for (unsigned int j_deriv = 0; j_deriv<dim; j_deriv++)
+        {
+            this->calculate_dKi_d_gradk_vpj(calculate_dim, i_pvar, j_deriv, sol, elem_sol, dBmat, mat);
+            Bmat.left_multiply(mat2_n1n2, mat);
+            d2Bmat.right_multiply_transpose(mat1_n1n1, elem_sol);
+            jac[i_cvar] += dprim_dcons(i_pvar, i_cvar) *
+        }
+
+    }
+}
+
+void
+MAST::FluidElemBase::
+calculate_dKi_dvp(const unsigned int calculate_dim,
+                  const unsigned int primitive_var,
+                  const MAST::PrimitiveSolution sol,
+                  const RealVectorX elem_sol,
+                  const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                  RealMatrixX &mat) {
+
+    const unsigned int n1 = dim + 2;
+
+    mat.setZero();
+
+    const Real rho = sol.rho,
+            u1 = sol.u1,
+            u2 = sol.u2,
+            u3 = sol.u3,
+            k = sol.k,
+            e_tot = sol.e_tot,
+            mu = sol.mu,
+            lambda = sol.lambda,
+            kth = sol.k_thermal,
+            T = sol.T,
+            cv = sol.cv,
+            cp = sol.cp,
+            R = cp - cv,
+            Pr = sol.Pr,
+            gma = cp/cv;
+
+    Real
+            dmu_dT = 0,
+            d2mu_dT2 = 0,
+            em6 = pow(10,-6);
+    if (mu!= 0)
+    {
+        dmu_dT = -1.458*em6*pow(T,1.5)/pow((T+110.4),2) + 2.187*em6*pow(T,0.5)/(110.4+T);
+        d2mu_dT2 = 2.916*em6*pow(T,1.5)/pow(110.4+T, 3) - 4.374*em6*pow(T,0.5)/pow(110.4+T,2) + 1.0935*em6/pow(T,0.5)/(110.4+T);
+    }
+
+    Real
+            dlambda_dT = -2/3*dmu_dT,
+            d2lambda_dT2 = -2/3*d2mu_dT2,
+            dkth_dT = cp/Pr*dmu_dT,
+            d2kth_dT2 = cp/Pr*d2mu_dT2;
+
+
+    RealMatrixX
+            dcons_dprim = RealMatrixX::Zero(n1, n1),
+            dprim_dcons = RealMatrixX::Zero(n1, n1);
+
+
+    // calculate variable Jacobian
+    calculate_conservative_variable_jacobian(sol,
+                                             dcons_dprim,
+                                             dprim_dcons);
+
+
+    // calculate spatial derivatives
+    std::vector<RealVectorX>
+            dcons_dx(dim);
+
+    std::vector<RealVectorX>
+            dprim_dx(dim);
+
+    calculate_primitive_and_conservative_gradients(sol, dB_mat, elem_sol, dprim_dcons, dcons_dx, dprim_dx);
+
+
+    Real
+            du1_dz = 0,
+            du2_dz = 0,
+            du3_dz = 0,
+            du1_dy = 0,
+            du2_dy = 0,
+            du3_dy = 0,
+            du1_dx = 0,
+            du2_dx = 0,
+            du3_dx = 0,
+            dT_dx = 0,
+            dT_dy = 0,
+            dT_dz = 0;
+
+    switch (dim) {
+        case 3: {
+            dprim_dx[2] = RealVectorX::Zero(n1);
+            dprim_dx[2] = dprim_dcons*dcons_dx[2];
+            du1_dz = dprim_dx[2](1);
+            du2_dz = dprim_dx[2](2);
+            du3_dz = dprim_dx[2](3);
+            dT_dz = dprim_dx[2](n1-1);
+            du3_dy = dprim_dx[1](3);
+            du3_dx = dprim_dx[0](3);
+        }
+        case 2: {
+            dprim_dx[1] = RealVectorX::Zero(n1);
+            dprim_dx[1] = dprim_dcons*dcons_dx[1];
+            du1_dy = dprim_dx[1](1);
+            du2_dy = dprim_dx[1](2);
+            du2_dx = dprim_dx[0](2);
+            dT_dy = dprim_dx[1](n1-1);
+        }
+        case 1: {
+            dprim_dx[0] = RealVectorX::Zero(n1);
+            dprim_dx[0] = dprim_dcons*dcons_dx[0];
+            du1_dx = dprim_dx[0](1);
+            dT_dx = dprim_dx[0](n1-1);
+            break;
+        }
+    }
+
+    switch (calculate_dim)
+    {
+        case 0:
+        {
+            switch (_active_primitive_vars[primitive_var])
+            {
+                case RHO_PRIM:
+                {
+                    // all zeroes
+                }
+                    break;
+
+                case VEL1:
+                {
+                        mat(n1-1,n1-1) = dmu_dT*(2*du1_dx+dlambda_dT*(du3_dz+du2_dy+du1_dx));
+                }
+                    break;
+
+                case VEL2:
+                {
+                    mat(n1-1,n1-1) = dmu_dT*(du1_dy+du2_dx);
+                }
+                    break;
+
+                case VEL3:
+                {
+                    mat(n1-1, n1-1) = dmu_dT*(du1_dz+du3_dx);
+                }
+                    break;
+
+                case TEMP:
+                {
+                    switch (dim)
+                    {
+                        case 3:
+                        {
+                            mat(n1-1, 3) = dmu_dT*(du1_dz+du3_dx);
+                            mat(3,n1-1) = d2mu_dT2*(du1_dz+du3_dx);
+                        }
+                        case 2:
+                        {
+                            mat(n1-1, 2) = dmu_dT*(du1_dy+du2_dx);
+                            mat(2,n1-1) = d2mu_dT2*(du1_dy+du2_dx);
+                        }
+                        case 1:
+                        {
+                            mat(1,n1-1) = dmu_dT*dmu_dT*d2lambda_dT2*(du3_dz+du2_dy+du1_dx)
+                                    + d2mu_dT2*(2*du1_dx+dlambda_dT*(du3_dz+du2_dy+du1_dx));
+                            mat(n1-1,1) = dmu_dT*(2*du1_dx+dlambda_dT*(du3_dz+du2_dy+du1_dx));
+                            mat(n1-1, n1-1) = u1*(dmu_dT*dmu_dT*d2lambda_dT2*(du3_dz+du2_dy+du1_dx)
+                                    + d2mu_dT2*(2*du1_dx+dlambda_dT*(du3_dz+du2_dy+du1_dx)))
+                                            + u2*d2mu_dT2*(du1_dy+du2_dx)+u3*d2mu_dT2*(du1_dz+du3_dx);
+                        }
+                        break;
+                    }
+                }
+                    break;
+
+                default:
+                    libmesh_assert_msg(false, "Invalid primitive variable number");
+                    break;
+            }
+        }
+
+        case 1:
+        {
+            switch (_active_primitive_vars[primitive_var])
+            {
+                case RHO_PRIM:
+                {
+                    // all zeroes
+                }
+                    break;
+
+                case VEL1:
+                {
+                    mat(n1-1, n1-1) = dmu_dT*(du1_dy + du2_dx);
+                }
+                    break;
+
+                case VEL2:
+                {
+                    mat(n1-1, n1-1) = dmu_dT*(2*du2_dy+dlambda_dT*(du3_dz+du2_dy+du1_dx));
+                }
+                    break;
+
+                case VEL3:
+                {
+                    mat(n1-1, n1-1) = dmu_dT*(du2_dz+du3_dy);
+                }
+                    break;
+
+                case TEMP:
+                {
+                    switch (dim)
+                    {
+                        case 3:
+                        {
+                            mat(n1-1,3) = dmu_dT*(du2_dz+du3_dy);
+                            mat(3,n1-1) = d2mu_dT2*(du2_dz+du3_dy);
+                        }
+                        case 2:
+                        {
+                            mat(n1-1,2) = dmu_dT*(2*du2_dy+dlambda_dT*(du3_dz+du2_dy+du1_dx));
+                            mat(2,n1-1) = dmu_dT*dmu_dT*d2lambda_dT2*(du3_dz+du2_dy+du1_dx) + d2mu_dT2*(2*du2_dy+dlambda_dT*(du3_dz+du2_dy+du1_dx));
+                        }
+                        case 1:
+                        {
+                            mat(n1-1,1) = dmu_dT*(du1_dy+du2_dx);
+                            mat(n1-1,n1-1) = u3*d2mu_dT2*(du2_dz+du3_dy)
+                                    + u2*(dmu_dT*dmu_dT*d2lambda_dT2*(du3_dz+du2_dy+du1_dx)
+                                    + d2mu_dT2*(2*du2_dy+dlambda_dT*(du3_dz+du2_dy+du1_dx)))
+                                    + u1*d2mu_dT2*(du1_dy+du2_dx);
+                            mat(1,n1-1) = d2mu_dT2*(du1_dy+du2_dx);
+                        }
+                            break;
+                    }
+                }
+                    break;
+
+                default:
+                    libmesh_assert_msg(false, "Invalid primitive variable number");
+                    break;
+            }
+        }
+
+        case 2:
+        {
+            switch (_active_primitive_vars[primitive_var])
+            {
+                case RHO_PRIM:
+                {
+                    // all zeroes
+                }
+                    break;
+
+                case VEL1:
+                {
+                    mat(n1-1, n1-1) = dmu_dT*(du1_dz + du3_dx);
+                }
+                    break;
+
+                case VEL2:
+                {
+                    mat(n1-1, n1-1) = dmu_dT*(du2_dz + du3_dy);
+                }
+                    break;
+
+                case VEL3:
+                {
+                    mat(n1-1, n1-1) = dmu_dT*((2+dlambda_dT)*du3_dz + dlambda_dT*(du2_dy+du1_dx));
+                }
+                    break;
+
+                case TEMP:
+                {
+                    switch (dim)
+                    {
+                        case 3:
+                        {
+                            mat(n1-1,3) = dmu_dT*((2+dlambda_dT)*du3_dz + dlambda_dT*(du2_dy+du1_dx));
+                            mat(3,n1-1) = dmu_dT*dmu_dT*d2lambda_dT2*(du3_dz+du2_dy+du1_dx)
+                                          + d2mu_dT2*((2+dlambda_dT)*du3_dz+dlambda_dT*(du2_dy+du1_dx));
+                        }
+                        case 2:
+                        {
+                            mat(n1-1,2) = dmu_dT*(du2_dz+du3_dy);
+                            mat(2,n1-1) = d2mu_dT2*(du2_dz+du3_dy);
+                        }
+                        case 1:
+                        {
+                            mat(n1-1,1) = dmu_dT*(du1_dz+du3_dx);
+                            mat(n1-1,n1-1) = u2*d2mu_dT2*(du2_dz+du3_dy)
+                                    + u3*(dmu_dT*dmu_dT*d2lambda_dT2*(du3_dz+du2_dy+du1_dx)
+                                    + d2mu_dT2*((2+dlambda_dT)*du3_dz
+                                    + dlambda_dT*(du2_dy+du1_dx)))
+                                    + u1*d2mu_dT2*(du1_dz+du3_dx);
+                            mat(1,n1-1) = d2mu_dT2*(du1_dz+du3_dx);
+                        }
+                            break;
+                    }
+                }
+                    break;
+
+                default:
+                    libmesh_assert_msg(false, "Invalid primitive variable number");
+                    break;
+            }
+        }
+    }
+}
+
+
 void
 MAST::FluidElemBase::
 get_conservative_vars(const MAST::PrimitiveSolution& sol,
@@ -1429,6 +1774,9 @@ get_conservative_vars(const MAST::PrimitiveSolution& sol,
     if (dim > 2)
         conservative_vars(3) = rho*u3;
 }
+
+
+
 void
 MAST::FluidElemBase::
 initialize_prim_solution(const RealVectorX& primitive_vars,
@@ -1470,6 +1818,7 @@ initialize_prim_solution(const RealVectorX& primitive_vars,
 
     sol.init(dim, cons_sol, cp, cv, if_viscous());
 }
+
 
 void
 MAST::FluidElemBase::
