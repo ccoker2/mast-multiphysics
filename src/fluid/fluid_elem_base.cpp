@@ -1404,49 +1404,69 @@ calculate_advection_flux_jacobian_sensitivity_for_conservative_variable
 
 void
 MAST::FluidElemBase::
-calculate_dKi_dxi
+calculate_diffusion_flux_jacobian_spatial_derivative
 (const unsigned int calculate_dim,
+ const MAST::FEBase& fe,
  const MAST::PrimitiveSolution& sol,
  const RealVectorX elem_sol,
+ const MAST::FEMOperatorMatrix& Bmat,
  const std::vector<MAST::FEMOperatorMatrix>& dBmat,
- std::vector<RealMatrixX >& jac) {
+ const std::vector<std::vector<MAST::FEMOperatorMatrix>>& d2Bmat,
+ RealMatrixX jac) {
+ // calculates the spatial derivative of the diffusion flux jacobian
+
     const unsigned int n1 = 2 + dim;
+    const unsigned int n2 = n1*fe.n_shape_functions();
 
     RealMatrixX
     dprim_dcons     = RealMatrixX::Zero(n1, n1),
-    mat             = RealMatrixX::Zero(n1, n1),
-    mat1_n1n1       = RealMatrixX::Zero(n1, n1);
+    dKi_dprim_n1n1  = RealMatrixX::Zero(n1, n1),
+    dKi_dpsol_n1n2  = RealMatrixX::Zero(n1, n2),
+    dKi_dgrad_prim  = RealMatrixX::Zero(n1, n1),
+    mat1_n1n1       = RealMatrixX::Zero(n1, n1),
+    mat2_n1n2       = RealMatrixX::Zero(n1, n2),
+    Ki_n1n1         = RealMatrixX::Zero(n1, n1),
+    KiBi_n1n2       = RealMatrixX::Zero(n1, n2);
 
-    for (unsigned int i_cvar = 0; i_cvar<n1; i_cvar++)
-        jac[i_cvar].setZero();
+    RealVectorX
+    dprim_dx_n1     = RealVectorX::Zero(n1),
+    d2prim_dx2_n2   = RealVectorX::Zero(n2);
 
-    this->calculate_conservative_variable_jacobian(sol, mat,  dprim_dcons);
+    this->calculate_conservative_variable_jacobian(sol, mat1_n1n1,  dprim_dcons);
 
-    // calculate based on chain rule of primary variables
-    for (unsigned int i_pvar = 0; i_pvar<n1; i_pvar++) // iterate over the primitive variables for chain rule
+    dBmat[calculate_dim].right_multiply(dprim_dx_n1, elem_sol);
+
+    // diffusion flux jacobian contribution
+    this->calculate_dfv_dvp(calculate_dim, sol, elem_sol, dBmat, Ki_n1n1);
+    dBmat[calculate_dim].left_multiply(KiBi_n1n2, Ki_n1n1);
+    jac += KiBi_n1n2;
+
+    for (unsigned int j_pvar = 0; j_pvar<n1; j_pvar++) // iterate over the primitive variables for chain rule
     {
-        this->calculate_dKi_dvp(calculate_dim, i_pvar, sol, elem_sol, dBmat, mat);
-        for (unsigned int i_cvar=0; i_cvar<n1; i_cvar++)
-        {
-            if (fabs(dprim_dcons(i_pvar, i_cvar)) > 0.0)
-                jac[i_cvar] += dprim_dcons(i_pvar, i_cvar) * mat;
 
-        }
+        // derivative of diffusion flux jacobian w.r.t. primitive vars contribution
+        dKi_dprim_n1n1.setZero();
+        calculate_dKi_dprim(calculate_dim, j_pvar, sol, elem_sol, dBmat, dKi_dprim_n1n1);
+        Bmat.left_multiply(dKi_dpsol_n1n2, dKi_dprim_n1n1);
+        jac += dKi_dpsol_n1n2 * dprim_dx_n1(j_pvar);
 
-        for (unsigned int j_deriv = 0; j_deriv<dim; j_deriv++)
-        {
-            this->calculate_dKi_d_gradk_vpj(calculate_dim, i_pvar, j_deriv, sol, elem_sol, dBmat, mat);
-            Bmat.left_multiply(mat2_n1n2, mat);
-            d2Bmat.right_multiply_transpose(mat1_n1n1, elem_sol);
-            jac[i_cvar] += dprim_dcons(i_pvar, i_cvar) *
-        }
+//        for (unsigned int k_deriv = 0; k_deriv<dim; k_deriv++) // iterate over the spatial dimensions for gradients
+//        {
+//
+//            // derivative of diffusion flux jacobian w.r.t. gradients of primary variables contribution
+//            dBmat[k_deriv].right_multiply_transpose(d2prim_dx2_n2, dprim_dx_n2);
+//            calculate_dKi_dgrad_prim(calculate_dim, j_pvar, k_deriv, sol, elem_sol, dBmat, dKi_dgrad_prim);
+//            Bmat.left_multiply(mat2_n1n2, dKi_dgrad_prim);
+//            jac += mat2_n1n2*d2prim_dx2_n2;
+//
+//        }
 
     }
 }
 
 void
 MAST::FluidElemBase::
-calculate_dKi_dvp(const unsigned int calculate_dim,
+calculate_dKi_dprim(const unsigned int calculate_dim,
                   const unsigned int primitive_var,
                   const MAST::PrimitiveSolution sol,
                   const RealVectorX elem_sol,
@@ -1615,6 +1635,7 @@ calculate_dKi_dvp(const unsigned int calculate_dim,
                     libmesh_assert_msg(false, "Invalid primitive variable number");
                     break;
             }
+            break;
         }
 
         case 1:
@@ -1677,6 +1698,7 @@ calculate_dKi_dvp(const unsigned int calculate_dim,
                     libmesh_assert_msg(false, "Invalid primitive variable number");
                     break;
             }
+            break;
         }
 
         case 2:
@@ -1741,6 +1763,7 @@ calculate_dKi_dvp(const unsigned int calculate_dim,
                     libmesh_assert_msg(false, "Invalid primitive variable number");
                     break;
             }
+            break;
         }
     }
 }

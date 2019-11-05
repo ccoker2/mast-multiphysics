@@ -272,14 +272,18 @@ namespace MAST {
          const MAST::PrimitiveSolution& sol,
          RealMatrixX& mat);
 
-
-        void calculate_dKi_dxi
+        void
+        calculate_diffusion_flux_jacobian_spatial_derivative
                 (const unsigned int calculate_dim,
+                 const MAST::FEBase& fe,
                  const MAST::PrimitiveSolution& sol,
-                 std::vector<RealMatrixX >& jac);
+                 const RealVectorX elem_sol,
+                 const MAST::FEMOperatorMatrix& Bmat,
+                 const std::vector<MAST::FEMOperatorMatrix>& dBmat,
+                 const std::vector<std::vector<MAST::FEMOperatorMatrix>>& d2Bmat,
+                 RealMatrixX jac);
 
-
-        void calculate_dKi_dvp
+        void calculate_dKi_dprim
                 (const unsigned int calculate_dim,
                  const unsigned int i_pvar,
                  const MAST::PrimitiveSolution sol,
@@ -288,7 +292,7 @@ namespace MAST {
                  RealMatrixX& mat);
 
 
-        void calculate_dKi_d_gradk_vpj
+        void calculate_dKi_dgrad_prim
                 (const unsigned int calculate_dim,
                  const unsigned int j_pvar,
                  const unsigned int k_deriv,
