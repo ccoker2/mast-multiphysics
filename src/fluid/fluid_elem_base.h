@@ -159,7 +159,16 @@ namespace MAST {
         calculate_conservative_variable_jacobian(const MAST::PrimitiveSolution& sol,
                                                  RealMatrixX& dcons_dprim,
                                                  RealMatrixX& dprim_dcons);
-        
+
+        /*!
+         *    calculates the linearization of dprim_dcons about a conservative variable, \frac{d^2 v_p}{d v_c d v_p}
+         */
+        void
+        calculate_conservative_variable_jacobian_derivative(const MAST::PrimitiveSolution& sol,
+                                                            const unsigned int primitive_var,
+                                                            RealMatrixX& mat);
+
+
         void
         calculate_advection_flux_jacobian(const unsigned int calculate_dim,
                                           const MAST::PrimitiveSolution& sol,
@@ -272,8 +281,7 @@ namespace MAST {
          const MAST::PrimitiveSolution& sol,
          RealMatrixX& mat);
 
-        void
-        calculate_diffusion_flux_jacobian_spatial_derivative
+        void calculate_diffusion_flux_jacobian_spatial_derivative
                 (const unsigned int calculate_dim,
                  const MAST::FEBase& fe,
                  const MAST::PrimitiveSolution& sol,
@@ -291,6 +299,12 @@ namespace MAST {
                  const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
                  RealMatrixX& mat);
 
+        void calculate_dKi_dcons(const unsigned int calculate_dim,
+                            const unsigned int primitive_var,
+                            const MAST::PrimitiveSolution sol,
+                            const RealVectorX elem_sol,
+                            const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                            RealMatrixX &mat);
 
         void calculate_dKi_dgrad_prim
                 (const unsigned int calculate_dim,

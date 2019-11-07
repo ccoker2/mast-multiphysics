@@ -420,11 +420,110 @@ calculate_conservative_variable_jacobian(const MAST::PrimitiveSolution& sol,
     
 }
 
-
-
 void
 MAST::FluidElemBase::
-calculate_advection_flux_jacobian(const unsigned int calculate_dim,
+calculate_conservative_variable_jacobian_derivative(const MAST::PrimitiveSolution& sol,
+                                                    const unsigned int primitive_var,
+                                                    RealMatrixX& mat) {
+    // calculate the linearization of dprim_dcons about a primitive variable
+
+    const unsigned int n1 = 2 + dim;
+    mat.setZero();
+
+    const Real
+    u1 = sol.u1,
+    u2 = sol.u2,
+    u3 = sol.u3,
+    T = sol.T,
+    rho = sol.rho,
+    cv = flight_condition->gas_property.cv;
+
+
+
+    switch (_active_primitive_vars[primitive_var])
+    {
+        case RHO_PRIM:
+        {
+            switch(dim)
+            {
+                case 3:
+                {
+                    mat(3,0) = u3/rho/rho;
+                    mat(3,3) = -1/rho/rho;
+                    mat(n1-1,3) = u3/cv/rho/rho;
+                }
+                case 2:
+                {
+                    mat(2,0) = u2/rho/rho;
+                    mat(2,2) = -1/rho/rho;
+                    mat(n1-1,2) = u2/cv/rho/rho;
+                }
+                case 1:
+                {
+                    mat(1,0) = u1/rho/rho;
+                    mat(1,1) = -1/rho/rho;
+                    mat(n1-1,0) = -((-2*cv*T+u1*u1+u2*u2+u3*u3)/(2*cv*rho*rho));
+                    mat(n1-1,1) = u1/cv/rho/rho;
+                    mat(n1-1, n1-1) = -1/cv/rho/rho;
+                }
+            }
+        }
+            break;
+
+        case VEL1:
+        {
+            mat(1,0) = -1/rho;
+            mat(n1-1, 0) = u1/cv/rho;
+            mat(n1-1, 1) = -1/cv/rho;
+        }
+            break;
+
+        case VEL2:
+        {
+            switch(dim)
+            {
+                case 2:
+                {
+                    mat(n1-1, 2) = -1/cv/rho;
+                    mat(2, 0) = -1/rho;
+                }
+                case 1:
+                {
+                    mat(n1-1, 0) = u2/cv/rho;
+                }
+            }
+        }
+            break;
+
+        case VEL3:
+        {
+            switch(dim)
+            {
+                case 3:
+                {
+                    mat(3,0) = -1/rho;
+                    mat(n1-1,3) = -1/cv/rho;
+                }
+                case 1:
+                {
+                    mat(n1-1,0) = u3/cv/rho;
+                }
+            }
+        }
+            break;
+
+        case TEMP:
+        {
+            mat(n1-1, 0) = -1/rho;
+        }
+            break;
+    }
+}
+
+
+    void
+    MAST::FluidElemBase::
+    calculate_advection_flux_jacobian(const unsigned int calculate_dim,
                                   const MAST::PrimitiveSolution& sol,
                                   RealMatrixX& mat) {
 
@@ -1008,6 +1107,7 @@ calculate_diffusion_flux_jacobian_cons (const unsigned int flux_dim,
                                         const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
                                         RealMatrixX& mat) {
 
+    mat.setZero();
     const unsigned int n1 = dim + 2;
 
     RealMatrixX
@@ -1046,8 +1146,8 @@ calculate_dfv_dvp (const unsigned int flux_dim,
             lambda = sol.lambda,
             kth = sol.k_thermal,
             T = sol.T,
-            cv = sol.cv,
-            cp = sol.cp,
+            cv = flight_condition->gas_property.cv,
+            cp = flight_condition->gas_property.cp,
             R = cp - cv,
             Pr = sol.Pr,
             gma = cp/cv;
@@ -1213,7 +1313,7 @@ check_element_diffusion_flux_jacobian(const unsigned int flux_dim,
 
 
     Real
-    rho = flight_condition->gas_property.rho,
+    rho = sol.rho,
     cv = flight_condition->gas_property.cv,
     cp = flight_condition->gas_property.cp,
 //    T = flight_condition->gas_property.T;
@@ -1414,55 +1514,340 @@ calculate_diffusion_flux_jacobian_spatial_derivative
  const std::vector<std::vector<MAST::FEMOperatorMatrix>>& d2Bmat,
  RealMatrixX jac) {
  // calculates the spatial derivative of the diffusion flux jacobian
+ jac.setZero();
 
     const unsigned int n1 = 2 + dim;
     const unsigned int n2 = n1*fe.n_shape_functions();
 
     RealMatrixX
     dprim_dcons     = RealMatrixX::Zero(n1, n1),
-    dKi_dprim_n1n1  = RealMatrixX::Zero(n1, n1),
-    dKi_dpsol_n1n2  = RealMatrixX::Zero(n1, n2),
-    dKi_dgrad_prim  = RealMatrixX::Zero(n1, n1),
     mat1_n1n1       = RealMatrixX::Zero(n1, n1),
-    mat2_n1n2       = RealMatrixX::Zero(n1, n2),
-    Ki_n1n1         = RealMatrixX::Zero(n1, n1),
-    KiBi_n1n2       = RealMatrixX::Zero(n1, n2);
+    mat2_n1n1       = RealMatrixX::Zero(n1, n1),
+    mat3_n1n2       = RealMatrixX::Zero(n1, n2);
 
     RealVectorX
-    dprim_dx_n1     = RealVectorX::Zero(n1),
+    vec1_n1         = RealVectorX::Zero(n1),
+    dcons_dx_n1     = RealVectorX::Zero(n1),
     d2prim_dx2_n2   = RealVectorX::Zero(n2);
 
     this->calculate_conservative_variable_jacobian(sol, mat1_n1n1,  dprim_dcons);
 
-    dBmat[calculate_dim].right_multiply(dprim_dx_n1, elem_sol);
+    dBmat[calculate_dim].right_multiply(dcons_dx_n1, elem_sol);
 
-    // diffusion flux jacobian contribution
-    this->calculate_dfv_dvp(calculate_dim, sol, elem_sol, dBmat, Ki_n1n1);
-    dBmat[calculate_dim].left_multiply(KiBi_n1n2, Ki_n1n1);
-    jac += KiBi_n1n2;
+    // dfv_dcons contribution
+    calculate_diffusion_flux_jacobian_cons(calculate_dim, sol, elem_sol, dBmat, mat1_n1n1);
+    dBmat[calculate_dim].left_multiply(mat3_n1n2, mat1_n1n1);
+    jac += mat3_n1n2;
 
-    for (unsigned int j_pvar = 0; j_pvar<n1; j_pvar++) // iterate over the primitive variables for chain rule
+
+    // compute dcons / dx_i
+    dBmat[calculate_dim].right_multiply(dcons_dx_n1, elem_sol);
+
+    // dKi_dcons contribution
+    mat2_n1n1.setZero();
+    for (unsigned int j_cvar = 0; j_cvar<n1; j_cvar++) // iterate over the primitive variables for chain rule
     {
+        calculate_dKi_dcons(calculate_dim, j_cvar, sol, elem_sol, dBmat, mat1_n1n1);
+        vec1_n1 = mat1_n1n1 * dcons_dx_n1;
+        mat2_n1n1.col(j_cvar) = vec1_n1;
+    }
 
-        // derivative of diffusion flux jacobian w.r.t. primitive vars contribution
-        dKi_dprim_n1n1.setZero();
-        calculate_dKi_dprim(calculate_dim, j_pvar, sol, elem_sol, dBmat, dKi_dprim_n1n1);
-        Bmat.left_multiply(dKi_dpsol_n1n2, dKi_dprim_n1n1);
-        jac += dKi_dpsol_n1n2 * dprim_dx_n1(j_pvar);
+    mat3_n1n2.setZero();
+    Bmat.left_multiply(mat3_n1n2, mat2_n1n1);
+    jac += mat3_n1n2;
 
-//        for (unsigned int k_deriv = 0; k_deriv<dim; k_deriv++) // iterate over the spatial dimensions for gradients
-//        {
-//
-//            // derivative of diffusion flux jacobian w.r.t. gradients of primary variables contribution
-//            dBmat[k_deriv].right_multiply_transpose(d2prim_dx2_n2, dprim_dx_n2);
-//            calculate_dKi_dgrad_prim(calculate_dim, j_pvar, k_deriv, sol, elem_sol, dBmat, dKi_dgrad_prim);
-//            Bmat.left_multiply(mat2_n1n2, dKi_dgrad_prim);
-//            jac += mat2_n1n2*d2prim_dx2_n2;
-//
-//        }
+    // dfv_dgrad(cons) contribution
+    for (unsigned int k_deriv = 0; k_deriv<n1; k_deriv++)
+    {
+        calculate_diffusion_flux_jacobian(calculate_dim, k_deriv, sol, mat1_n1n1);
+        d2Bmat[calculate_dim][k_deriv].left_multiply(mat3_n1n2,mat1_n1n1);
+        jac += mat3_n1n2;
 
+        mat3_n1n2.setZero();
+        for (unsigned int j_cvar = 0; j_cvar<n1; j_cvar++)
+        {
+            calculate_dKik_dcons(calculate_dim, j_cvar, k_deriv, sol, elem_sol)
+        }
     }
 }
+
+void
+MAST::FluidElemBase::
+calculate_dKi_dcons(const unsigned int calculate_dim,
+                    const unsigned int primitive_var,
+                    const MAST::PrimitiveSolution sol,
+                    const RealVectorX elem_sol,
+                    const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                    RealMatrixX &mat) {
+    // calculate the linearization  of the diffusion flux jacobian about a conservative variable
+    // dKi_dcons, where Ki is the jacobian of the diffusion flux w.r.t. the primitive variables
+
+    mat.setZero();
+    const unsigned int n1 = 2 + dim;
+
+    // compute the diffusion flux jacobian about the primitive variable
+    RealMatrixX dfv_dprim = RealMatrixX::Zero(n1,n1);
+    calculate_dfv_dvp(calculate_dim, sol, elem_sol, dB_mat, dfv_dprim);
+
+    // compute the linearization of the diffusion flux jacobian about the primitive variable
+    RealMatrixX dKi_dprim = RealMatrixX::Zero(n1,n1);
+    calculate_dKi_dprim(calculate_dim, primitive_var, sol, elem_sol, dB_mat, dKi_dprim);
+
+    // compute the conservative variable jacobian
+    RealMatrixX dprim_dcons = RealMatrixX::Zero(n1,n1);
+    RealMatrixX dcons_dprim = RealMatrixX::Zero(n1,n1);
+    calculate_conservative_variable_jacobian(sol, dcons_dprim, dprim_dcons);
+
+    // compute the linearization of the conservative variable jacobian about the primitive variable
+    RealMatrixX d2prim_dcons2 = RealMatrixX::Zero(n1,n1);
+    calculate_conservative_variable_jacobian_derivative(sol, primitive_var, d2prim_dcons2);
+
+    RealMatrixX dKi_dcons = dKi_dprim * dprim_dcons * dprim_dcons(primitive_var,primitive_var)
+            + dfv_dprim*d2prim_dcons2*dprim_dcons(primitive_var,primitive_var);
+}
+
+void
+MAST::FluidElemBase::
+calculate_dKik_dprim(const unsigned int flux_dim,
+                     const unsigned int primitive_var,
+                     const unsigned int deriv_dim,
+                     const MAST::PrimitiveSolution sol,
+                     const RealVectorX elem_sol,
+                     const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                     RealMatrixX &mat) {
+    // dKik_dprim, where Kik is the jacobian of the diffusion flux w.r.t. a gradient of the primitive variables
+    mat.setZero();
+    const unsigned int n1 = dim + 2;
+
+    const Real rho = sol.rho,
+    u1 = sol.u1,
+    u2 = sol.u2,
+    u3 = sol.u3,
+    mu = sol.mu,
+    T = sol.T,
+    lambda = sol.lambda;
+
+    switch (flux_dim)
+    {
+        case 0:
+        {
+            switch (_active_primitive_vars[primitive_var])
+            {
+                case RHO_PRIM:
+                {
+                    // all zeroes
+                }
+                case VEL1:
+                {
+                    switch (deriv_dim)
+                    {
+                        case 0:
+                        {
+                            mat(n1-1,1) = lambda + 2*mu;
+                        }
+                            break;
+
+                        case 1:
+                        {
+                            switch(dim)
+                            {
+                                case 3:
+                                {}
+                                case 2:
+                                {
+                                    mat(n1-1,2) = lambda;
+                                }
+                                case 1:
+                                {}
+                                break;
+                            }
+                        }
+                            break;
+
+                        case 2:
+                        {
+                            switch(dim)
+                            {
+                                case 3:
+                                {
+                                    mat(n1-1,3) = lambda;
+                                }
+                                case 2:
+                                {}
+                                case 1:
+                                {}
+                                break;
+                            }
+                        }
+                            break;
+                    }
+                }
+
+                case VEL2:
+                {
+                    switch (deriv_dim)
+                    {
+                        case 0:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {}
+                                case 2:
+                                {
+                                    mat(n1-1, 2) = mu;
+                                }
+                                case 1:
+                                {}
+                                break;
+                            }
+                        }
+                            break;
+
+                        case 1:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {}
+                                case 2:
+                                {}
+                                case 1:
+                                {
+                                    mat(n1-1,1) = mu;
+                                }
+                            }
+                        }
+                            break;
+
+                        case 2:
+                        {
+                            // all zeroes
+                        }
+                            break;
+                    }
+                }
+
+                case VEL3:
+                {
+                    switch (deriv_dim)
+                    {
+                        case 0:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {
+                                    mat(n1-1,3) = mu;
+                                }
+                                case 2:
+                                {}
+                                case 1:
+                                {}
+                            }
+                        }
+                            break;
+
+                        case 1:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {}
+                                case 2:
+                                {}
+                                case 1:
+                                {}
+                            }
+                        }
+                            break;
+
+                        case 2:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {}
+                                case 2:
+                                {}
+                                case 1:
+                                {}
+                            }
+                        }
+                            break;
+                    }
+                }
+
+                case TEMP:
+                {
+                    switch (deriv_dim)
+                    {
+                        case 0:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {}
+                                case 2:
+                                {}
+                                case 1:
+                                {}
+                            }
+                        }
+                            break;
+
+                        case 1:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {}
+                                case 2:
+                                {}
+                                case 1:
+                                {}
+                            }
+                        }
+                            break;
+
+                        case 2:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {}
+                                case 2:
+                                {}
+                                case 1:
+                                {}
+                            }
+                        }
+                            break;
+                    }
+                }
+
+                default:
+                    libmesh_assert_msg(false, "Invalid primitive variable number");
+                    break;
+            }
+        }
+        break;
+
+        case 1:
+        {
+
+        }
+        break;
+
+        case 2:
+        {
+
+        }
+        break;
+    }
+
+}
+
 
 void
 MAST::FluidElemBase::
@@ -1472,23 +1857,19 @@ calculate_dKi_dprim(const unsigned int calculate_dim,
                   const RealVectorX elem_sol,
                   const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
                   RealMatrixX &mat) {
-
-    const unsigned int n1 = dim + 2;
-
+    // calculate the linearization of the diffusion flux jacobian about a primitive variable
+    // dKi_dprim, where Ki is the jacobian of the diffusion flux w.r.t. the primitive variables
     mat.setZero();
+    const unsigned int n1 = dim + 2;
 
     const Real rho = sol.rho,
             u1 = sol.u1,
             u2 = sol.u2,
             u3 = sol.u3,
-            k = sol.k,
-            e_tot = sol.e_tot,
             mu = sol.mu,
-            lambda = sol.lambda,
-            kth = sol.k_thermal,
             T = sol.T,
-            cv = sol.cv,
-            cp = sol.cp,
+            cv = flight_condition->gas_property.cv,
+            cp = flight_condition->gas_property.cp,
             R = cp - cv,
             Pr = sol.Pr,
             gma = cp/cv;
@@ -1773,6 +2154,7 @@ void
 MAST::FluidElemBase::
 get_conservative_vars(const MAST::PrimitiveSolution& sol,
                       RealVectorX& conservative_vars) {
+    conservative_vars.setZero();
     // get the conservative variables
     const unsigned int n1 = dim + 2;
 
@@ -1851,7 +2233,8 @@ calculate_advection_flux_jacobian_sensitivity_for_primitive_variable
  const MAST::PrimitiveSolution& sol,
  RealMatrixX& mat) {
     
-    // calculate Ai = d F_adv / d x_i, where F_adv is the Euler advection flux vector
+    // calculate dAi/dvp_j, where Ai = d F_adv/dvp, where vp is the vector of primitive variables and
+    // F_adv is the Euler advection flux vector
     
     const unsigned int n1 = 2 + dim;
     

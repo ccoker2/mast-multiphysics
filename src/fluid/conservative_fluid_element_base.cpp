@@ -339,30 +339,31 @@ MAST::ConservativeFluidElementBase::internal_residual (bool request_jacobian,
             jac  += JxW[qp] * LS.transpose() * AiBi_adv;                          // A_i dB_i
             if (if_viscous()) {
 
-//              for (unsigned int i_dim = 0; i_dim < dim; i_dim++) {
-//                  for (unsigned int j_dim = 0; j_dim < dim; j_dim++) {
+//            for (unsigned int i_dim = 0; i_dim < dim; i_dim++) {
+//                for (unsigned int j_dim = 0; j_dim < dim; j_dim++) {
 
 
-//                      // w.r.t. conservative variable gradients
-//                      calculate_diffusion_flux_jacobian(i_dim,
-//                                                        j_dim,
-//                                                        primitive_sol,
-//                                                        mat1_n1n1);
+//                    // w.r.t. conservative variable gradients
+//                    calculate_diffusion_flux_jacobian(i_dim,
+//                                                      j_dim,
+//                                                      primitive_sol,
+//                                                      mat1_n1n1);
 
-//                      d2Bmat[i_dim][j_dim].left_multiply(mat3_n1n2, mat1_n1n1);
-//                      jac -= JxW[qp] * LS.transpose() * mat3_n1n2;
+//                    d2Bmat[i_dim][j_dim].left_multiply(mat3_n1n2, mat1_n1n1);
+//                    jac -= JxW[qp] * LS.transpose() * mat3_n1n2;
 
-//                  }
-//                  // w.r.t. conservative variables
-//                  calculate_diffusion_flux_jacobian_cons(i_dim, primitive_sol, _sol, dBmat, mat1_n1n1);
-//                  dBmat[i_dim].left_multiply(mat3_n1n2, mat1_n1n1);
-//                  jac -= JxW[qp] * LS.transpose() * mat3_n1n2;
-//            }
+//                }
+//                // w.r.t. conservative variables
+//                calculate_diffusion_flux_jacobian_cons(i_dim, primitive_sol, _sol, dBmat, mat1_n1n1);
+//                dBmat[i_dim].left_multiply(mat3_n1n2, mat1_n1n1);
+//                jac -= JxW[qp] * LS.transpose() * mat3_n1n2;
+//          }
 
 
 
             // new implementation for diffusion stabilization term
             for (unsigned int i_dim = 0; i_dim < dim; i_dim++) {
+                mat3_n1n2.setZero();
                 calculate_diffusion_flux_jacobian_spatial_derivative(i_dim, *fe, primitive_sol, _sol, Bmat, dBmat, d2Bmat, mat3_n1n2);
                 jac -= JxW[qp] * LS.transpose() * mat3_n1n2;
             }
