@@ -289,31 +289,37 @@ namespace MAST {
                  const MAST::FEMOperatorMatrix& Bmat,
                  const std::vector<MAST::FEMOperatorMatrix>& dBmat,
                  const std::vector<std::vector<MAST::FEMOperatorMatrix>>& d2Bmat,
-                 RealMatrixX jac);
+                 RealMatrixX& jac);
 
         void calculate_dKi_dprim
                 (const unsigned int calculate_dim,
-                 const unsigned int i_pvar,
+                 const unsigned int primitive_var,
                  const MAST::PrimitiveSolution sol,
                  const RealVectorX elem_sol,
                  const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
                  RealMatrixX& mat);
 
         void calculate_dKi_dcons(const unsigned int calculate_dim,
-                            const unsigned int primitive_var,
+                            const unsigned int conservative_var,
                             const MAST::PrimitiveSolution sol,
-                            const RealVectorX elem_sol,
+                            const RealVectorX& elem_sol,
                             const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
-                            RealMatrixX &mat);
+                            RealMatrixX& mat);
 
-        void calculate_dKi_dgrad_prim
-                (const unsigned int calculate_dim,
-                 const unsigned int j_pvar,
-                 const unsigned int k_deriv,
-                 const MAST::PrimitiveSolution sol,
-                 const RealVectorX elem_sol,
-                 const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
-                 RealMatrixX& mat);
+        void calculate_dKik_dprim(const unsigned int flux_dim,
+                             const unsigned int primitive_var,
+                             const unsigned int deriv_dim,
+                             const MAST::PrimitiveSolution sol,
+                             const RealVectorX elem_sol,
+                             const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                             RealMatrixX& mat);
+
+        void calculate_dKik_dcons(const unsigned int flux_dim,
+                             const unsigned int conservative_var,
+                             const MAST::PrimitiveSolution sol,
+                             const RealVectorX elem_sol,
+                             const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                             RealMatrixX& mat);
 
 
         void calculate_advection_left_eigenvector_and_inverse_for_normal

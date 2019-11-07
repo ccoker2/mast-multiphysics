@@ -1150,7 +1150,7 @@ calculate_dfv_dvp (const unsigned int flux_dim,
             cp = flight_condition->gas_property.cp,
             R = cp - cv,
             Pr = sol.Pr,
-            gma = cp/cv;
+            gma = flight_condition->gas_property.gamma;
 
     Real
     dmu_dT = 0;
@@ -1512,7 +1512,7 @@ calculate_diffusion_flux_jacobian_spatial_derivative
  const MAST::FEMOperatorMatrix& Bmat,
  const std::vector<MAST::FEMOperatorMatrix>& dBmat,
  const std::vector<std::vector<MAST::FEMOperatorMatrix>>& d2Bmat,
- RealMatrixX jac) {
+ RealMatrixX& jac) {
  // calculates the spatial derivative of the diffusion flux jacobian
  jac.setZero();
 
@@ -1527,84 +1527,139 @@ calculate_diffusion_flux_jacobian_spatial_derivative
 
     RealVectorX
     vec1_n1         = RealVectorX::Zero(n1),
-    dcons_dx_n1     = RealVectorX::Zero(n1),
-    d2prim_dx2_n2   = RealVectorX::Zero(n2);
+    dcons_dx     = RealVectorX::Zero(n1),
+    d2cons_dx2   = RealVectorX::Zero(n1);
 
     this->calculate_conservative_variable_jacobian(sol, mat1_n1n1,  dprim_dcons);
 
-    dBmat[calculate_dim].right_multiply(dcons_dx_n1, elem_sol);
 
     // dfv_dcons contribution
     calculate_diffusion_flux_jacobian_cons(calculate_dim, sol, elem_sol, dBmat, mat1_n1n1);
     dBmat[calculate_dim].left_multiply(mat3_n1n2, mat1_n1n1);
     jac += mat3_n1n2;
 
-
     // compute dcons / dx_i
-    dBmat[calculate_dim].right_multiply(dcons_dx_n1, elem_sol);
+    dBmat[calculate_dim].right_multiply(dcons_dx, elem_sol);
 
     // dKi_dcons contribution
     mat2_n1n1.setZero();
-    for (unsigned int j_cvar = 0; j_cvar<n1; j_cvar++) // iterate over the primitive variables for chain rule
+    for (unsigned int j_cvar = 0; j_cvar<n1; j_cvar++) // iterate over the conservative variables for chain rule
     {
         calculate_dKi_dcons(calculate_dim, j_cvar, sol, elem_sol, dBmat, mat1_n1n1);
-        vec1_n1 = mat1_n1n1 * dcons_dx_n1;
+        vec1_n1 = mat1_n1n1 * dcons_dx;
         mat2_n1n1.col(j_cvar) = vec1_n1;
     }
-
-    mat3_n1n2.setZero();
     Bmat.left_multiply(mat3_n1n2, mat2_n1n1);
     jac += mat3_n1n2;
 
     // dfv_dgrad(cons) contribution
-    for (unsigned int k_deriv = 0; k_deriv<n1; k_deriv++)
+    for (unsigned int k_deriv = 0; k_deriv<dim; k_deriv++)
     {
         calculate_diffusion_flux_jacobian(calculate_dim, k_deriv, sol, mat1_n1n1);
-        d2Bmat[calculate_dim][k_deriv].left_multiply(mat3_n1n2,mat1_n1n1);
+        d2Bmat[calculate_dim][k_deriv].left_multiply(mat3_n1n2, mat1_n1n1);
         jac += mat3_n1n2;
 
+        d2Bmat[calculate_dim][k_deriv].right_multiply(d2cons_dx2, elem_sol);
+        mat2_n1n1.setZero();
         mat3_n1n2.setZero();
         for (unsigned int j_cvar = 0; j_cvar<n1; j_cvar++)
         {
-            calculate_dKik_dcons(calculate_dim, j_cvar, k_deriv, sol, elem_sol)
+            calculate_dKik_dcons(calculate_dim, j_cvar, sol, elem_sol, dBmat, mat1_n1n1);
+            mat2_n1n1.col(j_cvar) += mat1_n1n1*d2cons_dx2;
         }
+        Bmat.left_multiply(mat3_n1n2, mat2_n1n1);
+        jac += mat3_n1n2;
     }
 }
 
 void
 MAST::FluidElemBase::
 calculate_dKi_dcons(const unsigned int calculate_dim,
-                    const unsigned int primitive_var,
+                    const unsigned int conservative_var,
                     const MAST::PrimitiveSolution sol,
-                    const RealVectorX elem_sol,
+                    const RealVectorX& elem_sol,
                     const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
-                    RealMatrixX &mat) {
+                    RealMatrixX& mat) {
     // calculate the linearization  of the diffusion flux jacobian about a conservative variable
     // dKi_dcons, where Ki is the jacobian of the diffusion flux w.r.t. the primitive variables
 
     mat.setZero();
     const unsigned int n1 = 2 + dim;
 
-    // compute the diffusion flux jacobian about the primitive variable
-    RealMatrixX dfv_dprim = RealMatrixX::Zero(n1,n1);
-    calculate_dfv_dvp(calculate_dim, sol, elem_sol, dB_mat, dfv_dprim);
-
-    // compute the linearization of the diffusion flux jacobian about the primitive variable
-    RealMatrixX dKi_dprim = RealMatrixX::Zero(n1,n1);
-    calculate_dKi_dprim(calculate_dim, primitive_var, sol, elem_sol, dB_mat, dKi_dprim);
-
     // compute the conservative variable jacobian
     RealMatrixX dprim_dcons = RealMatrixX::Zero(n1,n1);
     RealMatrixX dcons_dprim = RealMatrixX::Zero(n1,n1);
     calculate_conservative_variable_jacobian(sol, dcons_dprim, dprim_dcons);
 
-    // compute the linearization of the conservative variable jacobian about the primitive variable
-    RealMatrixX d2prim_dcons2 = RealMatrixX::Zero(n1,n1);
-    calculate_conservative_variable_jacobian_derivative(sol, primitive_var, d2prim_dcons2);
+    for (unsigned int i_pvar = 0; i_pvar < n1; i_pvar++)
+    {
+        // compute the diffusion flux jacobian about the primitive variable
+        RealMatrixX dfv_dprim = RealMatrixX::Zero(n1,n1);
+        calculate_dfv_dvp(calculate_dim, sol, elem_sol, dB_mat, dfv_dprim);
 
-    RealMatrixX dKi_dcons = dKi_dprim * dprim_dcons * dprim_dcons(primitive_var,primitive_var)
-            + dfv_dprim*d2prim_dcons2*dprim_dcons(primitive_var,primitive_var);
+        // compute the linearization of the diffusion flux jacobian about the primitive variable
+        RealMatrixX dKi_dprim = RealMatrixX::Zero(n1,n1);
+        calculate_dKi_dprim(calculate_dim, i_pvar, sol, elem_sol, dB_mat, dKi_dprim);
+
+        // compute the linearization of the conservative variable jacobian about the primitive variable
+        RealMatrixX d2prim_dcons2 = RealMatrixX::Zero(n1,n1);
+        calculate_conservative_variable_jacobian_derivative(sol, i_pvar, d2prim_dcons2);
+
+        if (fabs(dprim_dcons(i_pvar, conservative_var)) > 0.0)
+        {
+            mat += dKi_dprim*dprim_dcons * dprim_dcons(i_pvar, conservative_var)
+                    +  dfv_dprim * d2prim_dcons2 * dprim_dcons(i_pvar, conservative_var);
+        }
+    }
+
+
+
+
 }
+
+void
+MAST::FluidElemBase::
+calculate_dKik_dcons(const unsigned int flux_dim,
+                     const unsigned int conservative_var,
+                     const MAST::PrimitiveSolution sol,
+                     const RealVectorX elem_sol,
+                     const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                     RealMatrixX& mat) {
+    // calculates the derivative of Kik w.r.t a conservative variable, where Kik is the derivative of the diffusion
+    // flux w.r.t. the gradient of the conservative variable
+
+    mat.setZero();
+    const unsigned int n1 = 2 + dim;
+
+    RealMatrixX
+    mat1_n1n1 = RealMatrixX::Zero(n1,n1),
+    dprim_dcons = RealMatrixX::Zero(n1,n1),
+    dcons_dprim = RealMatrixX::Zero(n1,n1),
+    d2prim_dcons2 = RealMatrixX::Zero(n1,n1);
+
+    calculate_conservative_variable_jacobian(sol, dcons_dprim, dprim_dcons);
+
+
+    for (unsigned int i_pvar = 0; i_pvar < dim; i_pvar++)
+    {
+        calculate_conservative_variable_jacobian_derivative(sol, i_pvar, d2prim_dcons2);
+        for (unsigned int k_deriv = 0; k_deriv < dim; k_deriv++)
+        {
+            calculate_dKik_dprim(flux_dim, i_pvar, k_deriv, sol, elem_sol, dB_mat, mat1_n1n1);
+            mat1_n1n1 *= dprim_dcons;
+
+            if (fabs(dprim_dcons(i_pvar, conservative_var)) > 0.0)
+                mat += mat1_n1n1*dprim_dcons(i_pvar, conservative_var);
+
+            calculate_diffusion_flux_jacobian(flux_dim, k_deriv, sol, mat1_n1n1);
+            mat1_n1n1 *= d2prim_dcons2;
+
+            if (fabs(dprim_dcons(i_pvar, conservative_var)) > 0.0)
+                mat += mat1_n1n1*dprim_dcons(i_pvar, conservative_var);
+        }
+    }
+}
+
 
 void
 MAST::FluidElemBase::
@@ -1614,7 +1669,7 @@ calculate_dKik_dprim(const unsigned int flux_dim,
                      const MAST::PrimitiveSolution sol,
                      const RealVectorX elem_sol,
                      const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
-                     RealMatrixX &mat) {
+                     RealMatrixX& mat) {
     // dKik_dprim, where Kik is the jacobian of the diffusion flux w.r.t. a gradient of the primitive variables
     mat.setZero();
     const unsigned int n1 = dim + 2;
@@ -1625,7 +1680,26 @@ calculate_dKik_dprim(const unsigned int flux_dim,
     u3 = sol.u3,
     mu = sol.mu,
     T = sol.T,
-    lambda = sol.lambda;
+    lambda = sol.lambda,
+    cp = flight_condition->gas_property.cp,
+    cv = flight_condition->gas_property.cv,
+    Pr = sol.Pr;
+
+    Real
+            dmu_dT = 0,
+            d2mu_dT2 = 0,
+            em6 = pow(10,-6);
+    if (mu!= 0)
+    {
+        dmu_dT = -1.458*em6*pow(T,1.5)/pow((T+110.4),2) + 2.187*em6*pow(T,0.5)/(110.4+T);
+        d2mu_dT2 = 2.916*em6*pow(T,1.5)/pow(110.4+T, 3) - 4.374*em6*pow(T,0.5)/pow(110.4+T,2) + 1.0935*em6/pow(T,0.5)/(110.4+T);
+    }
+
+    Real
+            dlambda_dT = -2/3*dmu_dT,
+            d2lambda_dT2 = -2/3*d2mu_dT2,
+            dkth_dT = cp/Pr*dmu_dT,
+            d2kth_dT2 = cp/Pr*d2mu_dT2;
 
     switch (flux_dim)
     {
@@ -1637,6 +1711,7 @@ calculate_dKik_dprim(const unsigned int flux_dim,
                 {
                     // all zeroes
                 }
+                break;
                 case VEL1:
                 {
                     switch (deriv_dim)
@@ -1682,6 +1757,7 @@ calculate_dKik_dprim(const unsigned int flux_dim,
                             break;
                     }
                 }
+                break;
 
                 case VEL2:
                 {
@@ -1727,6 +1803,7 @@ calculate_dKik_dprim(const unsigned int flux_dim,
                             break;
                     }
                 }
+                break;
 
                 case VEL3:
                 {
@@ -1750,10 +1827,214 @@ calculate_dKik_dprim(const unsigned int flux_dim,
 
                         case 1:
                         {
+                            // all zeroes
+                        }
+                            break;
+
+                        case 2:
+                        {
                             switch (dim)
                             {
                                 case 3:
                                 {}
+                                case 2:
+                                {}
+                                case 1:
+                                {
+                                    mat(n1-1, 1) = mu;
+                                }
+                            }
+                        }
+                            break;
+                    }
+                }
+                break;
+
+                case TEMP:
+                {
+                    switch (deriv_dim)
+                    {
+                        case 0:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {
+                                    mat(3,3) = dmu_dT;
+                                    mat(n1-1, 3) = u3*dmu_dT;
+                                }
+                                case 2:
+                                {
+                                    mat(2,2) = dmu_dT;
+                                    mat(n1-1,2) = u2*dmu_dT;
+                                }
+                                case 1:
+                                {
+                                    mat(1,1) = (2+dlambda_dT)*dmu_dT;
+                                    mat(n1-1,1) = u1*(2+dlambda_dT)*dmu_dT;
+                                }
+                            }
+                        }
+                            break;
+
+                        case 1:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {}
+                                case 2:
+                                {
+                                    mat(1,2) = dlambda_dT*dmu_dT;
+                                    mat(n1-1,2) = u1*dlambda_dT*dmu_dT;
+                                    mat(2,1) = dmu_dT;
+                                }
+                                case 1:
+                                {
+                                    mat(n1-1,1) = u2*dmu_dT;
+                                }
+                            }
+                        }
+                            break;
+
+                        case 2:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {
+                                    mat(1,3) = dlambda_dT*dmu_dT;
+                                    mat(n1-1,3) = u1*dlambda_dT*dmu_dT;
+                                    mat(3,1) = dmu_dT;
+                                }
+                                case 2:
+                                {}
+                                case 1:
+                                {
+                                    mat(n1-1,1) = u3*dmu_dT;
+                                }
+                            }
+                        }
+                            break;
+                    }
+                }
+                break;
+
+                default:
+                    libmesh_assert_msg(false, "Invalid primitive variable number");
+                    break;
+            }
+        }
+        break;
+
+        case 1:
+        {
+            switch (_active_primitive_vars[primitive_var])
+            {
+                case RHO_PRIM:
+                {
+                    // all zeroes
+                }
+                break;
+                case VEL1:
+                {
+                    switch (deriv_dim)
+                    {
+                        case 0:
+                        {
+                            switch(dim)
+                            {
+                                case 3:
+                                {}
+                                case 2:
+                                {
+                                    mat(n1-1,2) = mu;
+                                }
+                                case 1:
+                                {}
+                                break;
+                            }
+                        }
+                        break;
+
+                        case 1:
+                        {
+                            mat(n1-1, 1) = mu;
+                        }
+                        break;
+
+                        case 2:
+                        {
+                            // all zeroes
+                        }
+                        break;
+                    }
+                }
+                break;
+
+                case VEL2:
+                {
+                    switch (deriv_dim)
+                    {
+                        case 0:
+                        {
+                            mat(n1-1,1) = lambda;
+                        }
+                        break;
+
+                        case 1:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {}
+                                case 2:
+                                {
+                                    mat(n1-1,2) = lambda + 2*mu;
+                                }
+                                case 1:
+                                {}
+                                break;
+                            }
+                        }
+                        break;
+
+                        case 2:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {
+                                    mat(n1-1,3) = lambda;
+                                }
+                                case 2:
+                                {}
+                                case 1:
+                                {}
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+                break;
+
+                case VEL3:
+                {
+                    switch (deriv_dim)
+                    {
+                        case 0:
+                        {
+                            // all zeroes
+                        }
+                            break;
+
+                        case 1:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                    mat(n1-1,3) = mu;
                                 case 2:
                                 {}
                                 case 1:
@@ -1769,7 +2050,9 @@ calculate_dKik_dprim(const unsigned int flux_dim,
                                 case 3:
                                 {}
                                 case 2:
-                                {}
+                                {
+                                    mat(n1-1,2) = mu;
+                                }
                                 case 1:
                                 {}
                             }
@@ -1777,6 +2060,7 @@ calculate_dKik_dprim(const unsigned int flux_dim,
                             break;
                     }
                 }
+                break;
 
                 case TEMP:
                 {
@@ -1789,10 +2073,172 @@ calculate_dKik_dprim(const unsigned int flux_dim,
                                 case 3:
                                 {}
                                 case 2:
-                                {}
+                                {
+                                    mat(n1-1,2) = u1*dmu_dT;
+                                    mat(1,2) = dmu_dT;
+                                    mat(2,1) = dlambda_dT*dmu_dT;
+                                }
+                                case 1:
+                                {
+                                    mat(n1-1,1) = u2*dlambda_dT*dmu_dT;
+                                }
+                            }
+                        }
+                            break;
+
+                        case 1:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {
+                                    mat(n1-1,3) = u3*dmu_dT;
+                                    mat(3,3) = dmu_dT;
+                                }
+                                case 2:
+                                {
+                                    mat(2,2) = (2+dlambda_dT)*dmu_dT;
+                                    mat(n1-1,2) = u2*(2+dlambda_dT)*dmu_dT;
+                                }
+                                case 1:
+                                {
+                                    mat(1,1) = dmu_dT;
+                                    mat(n1-1,1) = u1*dmu_dT;
+                                }
+                            }
+                        }
+                            break;
+
+                        case 2:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {
+                                    mat(n1-1,3) = u2*dlambda_dT*dmu_dT;
+                                    mat(2,3) = dlambda_dT*dmu_dT;
+                                    mat(3,2) = dmu_dT;
+                                }
+                                case 2:
+                                {
+                                    mat(n1-1,2) = u3*dmu_dT;
+                                }
                                 case 1:
                                 {}
                             }
+                        }
+                            break;
+                    }
+                }
+                break;
+
+                default:
+                    libmesh_assert_msg(false, "Invalid primitive variable number");
+                    break;
+            }
+        }
+        break;
+
+        case 2:
+        {
+            switch (_active_primitive_vars[primitive_var])
+            {
+                case RHO_PRIM:
+                {
+                    // all zeroes
+                }
+                break;
+
+                case VEL1:
+                {
+                    switch (deriv_dim)
+                    {
+                        case 0:
+                        {
+                            switch(dim)
+                            {
+                                case 3:
+                                {
+                                    mat(n1-1,3) = mu;
+                                }
+                                case 2:
+                                {}
+                                case 1:
+                                {}
+                                break;
+                            }
+                        }
+                            break;
+
+                        case 1:
+                        {
+                            // all zeroes
+                        }
+                            break;
+
+                        case 2:
+                        {
+                            mat(n1-1,1) = mu;
+                        }
+                        break;
+                    }
+                }
+                break;
+
+                case VEL2:
+                {
+                    switch (deriv_dim)
+                    {
+                        case 0:
+                        {
+                            // all zeroes
+                        }
+                            break;
+
+                        case 1:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {
+                                    mat(n1-1,3) = mu;
+                                }
+                                case 2:
+                                {}
+                                case 1:
+                                {}
+                                break;
+                            }
+                        }
+                        break;
+
+                        case 2:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {}
+                                case 2:
+                                {
+                                    mat(n1-1,2) = mu;
+                                }
+                                case 1:
+                                {}
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+                break;
+
+                case VEL3:
+                {
+                    switch (deriv_dim)
+                    {
+                        case 0:
+                        {
+                            mat(n1-1,1) = lambda;
                         }
                             break;
 
@@ -1803,9 +2249,78 @@ calculate_dKik_dprim(const unsigned int flux_dim,
                                 case 3:
                                 {}
                                 case 2:
+                                {
+                                    mat(n1-1,2) = lambda;
+                                }
+                                case 1:
+                                {}
+                                break;
+                            }
+                        }
+                        break;
+
+                        case 2:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {
+                                    mat(n1-1,3) = lambda+2*mu;
+                                }
+                                case 2:
                                 {}
                                 case 1:
                                 {}
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+                break;
+
+                case TEMP:
+                {
+                    switch (deriv_dim)
+                    {
+                        case 0:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {
+                                    mat(n1-1,3) = u1*dmu_dT;
+                                    mat(1,3) = dmu_dT;
+                                    mat(3,1) = dlambda_dT*dmu_dT;
+                                }
+                                case 2:
+                                {}
+                                case 1:
+                                {
+                                    mat(n1-1,1) = u3*dlambda_dT*dmu_dT;
+                                }
+                                break;
+                            }
+                        }
+                        break;
+
+                        case 1:
+                        {
+                            switch (dim)
+                            {
+                                case 3:
+                                {
+                                    mat(n1-1,3) = u2*dmu_dT;
+                                    mat(2,3) = dmu_dT;
+                                    mat(3,2) = dlambda_dT*dmu_dT;
+                                }
+                                case 2:
+                                {
+                                    mat(n1-1,2) = u3*dlambda_dT*dmu_dT;
+                                }
+                                case 1:
+                                {}
+                                break;
                             }
                         }
                             break;
@@ -1815,33 +2330,31 @@ calculate_dKik_dprim(const unsigned int flux_dim,
                             switch (dim)
                             {
                                 case 3:
-                                {}
+                                {
+                                    mat(3,3) = (2+dlambda_dT)*dmu_dT;
+                                    mat(n1-1,3) = u3*(2+dlambda_dT)*dmu_dT;
+                                }
                                 case 2:
-                                {}
+                                {
+                                    mat(2,2) = dmu_dT;
+                                    mat(n1-1,2) = u2*dmu_dT;
+                                }
                                 case 1:
-                                {}
+                                {
+                                    mat(1,1) = dmu_dT;
+                                    mat(n1-1,1) = u1*dmu_dT;
+                                }
                             }
                         }
                             break;
                     }
                 }
+                break;
 
                 default:
                     libmesh_assert_msg(false, "Invalid primitive variable number");
                     break;
             }
-        }
-        break;
-
-        case 1:
-        {
-
-        }
-        break;
-
-        case 2:
-        {
-
         }
         break;
     }
@@ -1856,7 +2369,7 @@ calculate_dKi_dprim(const unsigned int calculate_dim,
                   const MAST::PrimitiveSolution sol,
                   const RealVectorX elem_sol,
                   const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
-                  RealMatrixX &mat) {
+                  RealMatrixX& mat) {
     // calculate the linearization of the diffusion flux jacobian about a primitive variable
     // dKi_dprim, where Ki is the jacobian of the diffusion flux w.r.t. the primitive variables
     mat.setZero();
