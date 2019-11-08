@@ -291,6 +291,14 @@ namespace MAST {
                  const std::vector<std::vector<MAST::FEMOperatorMatrix>>& d2Bmat,
                  RealMatrixX& jac);
 
+        void calculate_diffusion_flux_spatial_derivative
+                (const unsigned int calculate_dim,
+                 const MAST::FEBase& fe,
+                 const MAST::PrimitiveSolution& sol,
+                 const RealVectorX elem_sol,
+                 const MAST::FEMOperatorMatrix& Bmat,
+                 RealMatrixX& mat);
+
         void calculate_dKi_dprim
                 (const unsigned int calculate_dim,
                  const unsigned int primitive_var,

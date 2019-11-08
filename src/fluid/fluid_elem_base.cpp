@@ -1574,6 +1574,23 @@ calculate_diffusion_flux_jacobian_spatial_derivative
 
 void
 MAST::FluidElemBase::
+calculate_diffusion_flux_spatial_derivative
+        (const unsigned int calculate_dim,
+         const MAST::FEBase& fe,
+         const MAST::PrimitiveSolution& sol,
+         const RealVectorX elem_sol,
+         const MAST::FEMOperatorMatrix& Bmat,
+         RealMatrixX& mat) {
+   // calculate the spatial derivative of the diffusion flux jacobian
+   mat.setZero();
+
+   const unsigned int n1 = 2 + dim;
+
+}
+
+
+void
+MAST::FluidElemBase::
 calculate_dKi_dcons(const unsigned int calculate_dim,
                     const unsigned int conservative_var,
                     const MAST::PrimitiveSolution sol,
@@ -4292,10 +4309,24 @@ calculate_differential_operator_matrix (const unsigned int qp,
     }
 
     // contribution of viscous flux term
-    
+    if(if_viscous()){
+        for (unsigned int flux_dim=0; flux_dim<dim; flux_dim++)
+        {
+            for (unsigned int deriv_dim=0; deriv_dim<dim; deriv_dim++){
+                calculate_diffusion_flux_jacobian_cons(flux_dim, sol, elem_solution, dB_mat, mat1_n1n1);
+                dB_mat[deriv_dim].right_multiply(dcons_dx, elem_solution);
+
+                for (unsigned int i_cvar=0; i_cvar<n1; i_cvar++)
+                {
+
+                }
+            }
+        }
+    }
+
     // scale the LS matrix with the correct factor
     if (if_diagonal_tau) {
-        
+
         for (unsigned int i=0; i<n1; i++)
             LS_operator.row(i) *= tau(i,i);
     }
