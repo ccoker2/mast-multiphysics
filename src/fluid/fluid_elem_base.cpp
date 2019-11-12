@@ -1501,6 +1501,44 @@ calculate_advection_flux_jacobian_sensitivity_for_conservative_variable
     }
 }
 
+void
+MAST::FluidElemBase::
+calculate_diffusion_flux_spatial_derivatives
+        (const MAST::PrimitiveSolution& sol,
+         const RealVectorX& elem_sol,
+         const MAST::FEMOperatorMatrix& Bmat,
+         const std::vector<MAST::FEMOperatorMatrix>& dBmat,
+         const std::vector<std::vector<MAST::FEMOperatorMatrix>>& d2Bmat,
+         std::vector<RealVectorX>& dfv_dx) {
+    // calculates the spatial derivative of the diffusion flux
+    unsigned int n1 = 2 + dim;
+
+    for (unsigned int i_dim=0; i_dim<dim; i_dim++)
+        dfv_dx[i_dim].setZero(n1);
+
+    RealMatrixX
+    K0 = RealMatrixX::Zero(n1, n1),
+    Kik = RealMatrixX::Zero(n1, n1);
+
+    RealVectorX
+    dcons_dx = RealVectorX::Zero(n1),
+    d2cons_dx2 = RealVectorX::Zero(n1);
+
+
+    for (unsigned int i_dim=0; i_dim<dim; i_dim++)
+    {
+        calculate_diffusion_flux_jacobian_cons(i_dim, sol, elem_sol, dBmat, K0);
+        dBmat[i_dim].right_multiply(dcons_dx, elem_sol);
+        dfv_dx[i_dim] += K0*dcons_dx;
+
+        for (unsigned int k_deriv=0; k_deriv<dim; k_deriv++)
+        {
+            calculate_diffusion_flux_jacobian(i_dim, k_deriv, sol, Kik);
+            d2Bmat[k_deriv][i_dim].right_multiply(d2cons_dx2, elem_sol);
+            dfv_dx[i_dim] += Kik*d2cons_dx2;
+        }
+    }
+}
 
 void
 MAST::FluidElemBase::
@@ -1572,21 +1610,6 @@ calculate_diffusion_flux_jacobian_spatial_derivative
     }
 }
 
-void
-MAST::FluidElemBase::
-calculate_diffusion_flux_spatial_derivative
-        (const unsigned int calculate_dim,
-         const MAST::FEBase& fe,
-         const MAST::PrimitiveSolution& sol,
-         const RealVectorX elem_sol,
-         const MAST::FEMOperatorMatrix& Bmat,
-         RealMatrixX& mat) {
-   // calculate the spatial derivative of the diffusion flux jacobian
-   mat.setZero();
-
-   const unsigned int n1 = 2 + dim;
-
-}
 
 
 void
@@ -4238,6 +4261,7 @@ calculate_differential_operator_matrix (const unsigned int qp,
                                         const MAST::PrimitiveSolution& sol,
                                         const MAST::FEMOperatorMatrix& B_mat,
                                         const std::vector<MAST::FEMOperatorMatrix>& dB_mat,
+                                        const std::vector<std::vector<MAST::FEMOperatorMatrix> >& d2Bmat,
                                         const std::vector<RealMatrixX >& Ai_advection,
                                         const RealMatrixX& Ai_Bi_advection,
                                         const std::vector<std::vector<RealMatrixX > >& Ai_sens,
@@ -4256,7 +4280,10 @@ calculate_differential_operator_matrix (const unsigned int qp,
     vec3               = RealVectorX::Zero(n1),
     vec4_n2            = RealVectorX::Zero(n2);
 
-    
+    std::vector<RealVectorX>
+    dfv_dx    (dim);
+
+
     const std::vector<std::vector<Real> >& phi =
     fe.get_phi(); // assuming that all variables have the same interpolation
     const unsigned int n_phi = (unsigned int) phi.size();
@@ -4308,21 +4335,39 @@ calculate_differential_operator_matrix (const unsigned int qp,
         }
     }
 
-    // contribution of viscous flux term
-    if(if_viscous()){
-        for (unsigned int flux_dim=0; flux_dim<dim; flux_dim++)
+
+    // contribution from the viscous term
+    if (if_viscous())
+    {
+
+        calculate_diffusion_flux_spatial_derivatives(sol, elem_solution, B_mat, dB_mat, d2Bmat, dfv_dx);
+        for (unsigned int i=0; i<dim; i++)
         {
-            for (unsigned int deriv_dim=0; deriv_dim<dim; deriv_dim++){
-                calculate_diffusion_flux_jacobian_cons(flux_dim, sol, elem_solution, dB_mat, mat1_n1n1);
-                dB_mat[deriv_dim].right_multiply(dcons_dx, elem_solution);
 
-                for (unsigned int i_cvar=0; i_cvar<n1; i_cvar++)
-                {
+            // sensitivity of the LS operator times strong form of residual
+            // Bi^T dAi/dalpha tau
+            vec1 = tau * dfv_dx[i];
+            for (unsigned int i_cvar=0; i_cvar<n1; i_cvar++)
+            {
+                vec3 = Ai_sens[i][i_cvar] * vec1;
+                dB_mat[i].vector_mult_transpose(vec4_n2, vec3);
+                for (unsigned int i_phi=0; i_phi<n_phi; i_phi++)
+                    LS_sens.col((n_phi*i_cvar)+i_phi) -= phi[i_phi][qp] * vec4_n2;
+            }
 
-                }
+            // Bi^T dAi/dalpha tau
+            for (unsigned int i_cvar=0; i_cvar<n1; i_cvar++)
+            {
+                vec1 = tau_sens[i_cvar] * dfv_dx[i];
+                vec3 = Ai_advection[i] * vec1;
+                dB_mat[i].vector_mult_transpose(vec4_n2, vec3);
+
+                for (unsigned int i_phi=0; i_phi<n_phi; i_phi++)
+                    LS_sens.col((n_phi*i_cvar)+i_phi) -= phi[i_phi][qp] * vec4_n2;
             }
         }
     }
+
 
     // scale the LS matrix with the correct factor
     if (if_diagonal_tau) {
